@@ -143,3 +143,326 @@ For support or questions, please open an issue in the repository or contact the 
 ---
 
 **Built with ❤️ using React and Tailwind CSS** 
+
+## 🚨 Troubleshooting
+
+### Backend Won't Start
+1. Check if port 5000 is available
+2. Verify `.env` file exists and has correct values
+3. Ensure database is accessible
+4. Check for syntax errors in server code
+
+### Frontend Won't Load
+1. Verify backend is running on port 5000
+2. Check browser console for errors
+3. Ensure all dependencies are installed
+4. Try clearing browser cache
+
+### Database Issues
+1. Verify DATABASE_URL in `.env`
+2. Check database connection
+3. Run `npx prisma db push` to sync schema
+4. Use Prisma Studio to inspect database
+
+### Role Assignment Not Working
+1. Ensure user is in 'pending' status
+2. Check if roles and dashboard sections are loaded
+3. Verify backend endpoints are working
+4. Check browser console for JavaScript errors
+
+## 🚨 Detailed Problem Solutions
+
+### 1. Registration Form "All fields are required" Error
+
+**Error Message**: `"All fields are required"` appears even when all visible fields are filled
+
+**Root Cause**: Backend validation was checking for `employeeId` and `departmentId` fields that weren't sent by the frontend
+
+**Solution**: ✅ Fixed - Backend now only validates: `firstName`, `lastName`, `email`, `password`
+
+**Prevention**: Ensure backend validation matches frontend form fields exactly
+
+---
+
+### 2. Frontend Blank Page / Build Errors
+
+**Error Message**: 
+```
+Build failed with errors
+ReferenceError: updateUserRole is not defined
+ReferenceError: updateUserStatus is not defined
+```
+
+**Root Cause**: API functions were defined in `adminAPI` object but not individually exported
+
+**Solution**: ✅ Fixed - Added individual exports for all API functions
+
+**Prevention**: Always export functions individually when they're used in other components
+
+---
+
+### 3. "Expected JSON response but got text/html" Error
+
+**Error Message**: 
+```
+❌ API Error: Expected JSON response but got text/html
+💥 API call failed: Error: Route not found
+```
+
+**Root Cause**: Frontend calling protected backend endpoints without authentication tokens
+
+**Solution**: ✅ Fixed - Added authentication checks and proper error handling middleware
+
+**Prevention**: Ensure all API calls include proper authentication headers
+
+---
+
+### 4. Database Connection Pool Timeout (P2024)
+
+**Error Message**: 
+```
+Prisma Client error: P2024: The connection pool timed out
+```
+
+**Root Cause**: Database connection string issues or network connectivity problems
+
+**Solutions**:
+- Ensure `.env` file is in root directory (not backend/)
+- Verify DATABASE_URL format is correct
+- Check if using Prisma Data Platform vs local database
+- Add connection retry logic
+
+**Prevention**: Use proper connection pooling and error handling in Prisma client initialization
+
+---
+
+### 5. Database Server Unreachable (P1001)
+
+**Error Message**: 
+```
+Prisma Client error: P1001: Can't reach database server
+```
+
+**Root Cause**: Database server is down or network issues
+
+**Solutions**:
+- Verify database server is running
+- Check firewall settings
+- Ensure DATABASE_URL points to correct host/port
+- Test database connectivity manually
+
+---
+
+### 6. Express.js "Missing parameter name" Error
+
+**Error Message**: 
+```
+TypeError: Missing parameter name at 1: https://git.new/pathToRegexpError
+```
+
+**Root Cause**: Express v5 compatibility issues with `path-to-regexp`
+
+**Solution**: ✅ Fixed - Downgraded to Express v4.18.2
+
+**Prevention**: Test Express version compatibility before upgrading
+
+---
+
+### 7. Prisma EPERM Error on Windows
+
+**Error Message**: 
+```
+EPERM: operation not permitted, rename
+```
+
+**Root Cause**: File permission issues during `prisma generate` on Windows
+
+**Solutions**:
+- Close all IDEs and file managers
+- Run terminal as administrator
+- Database will work with existing Prisma client
+- Try again after system restart
+
+**Prevention**: Close all file access before running Prisma commands
+
+---
+
+### 8. Admin Dashboard Not Showing Pending Users
+
+**Error Message**: No error, but pending users don't appear in the list
+
+**Root Cause**: User `status` field was missing or set to "verified" instead of "pending"
+
+**Solutions**:
+- Run `update-user-status.js` script to fix existing users
+- Ensure new users get `status: 'pending'` by default
+- Check database schema has `status` field
+- Use Prisma Studio to manually update user statuses
+
+**Prevention**: Always set default status in database schema and registration logic
+
+---
+
+### 9. "Failed to load dashboard data: Route not found" for getSystemHealth
+
+**Error Message**: 
+```
+Failed to load dashboard data: Route not found
+```
+
+**Root Cause**: Frontend calling `getSystemHealth` function that was removed from backend
+
+**Solution**: ✅ Fixed - Removed unused system health calls
+
+**Prevention**: Keep frontend and backend API functions in sync
+
+---
+
+### 10. "Failed to load dashboard data: getUsers is not defined"
+
+**Error Message**: 
+```
+Dashboard data load error: ReferenceError: getUsers is not defined
+```
+
+**Root Cause**: Missing import for `getUsers` function in AdminDashboard
+
+**Solution**: ✅ Fixed - Added proper imports for all API functions
+
+**Prevention**: Always verify imports match function usage
+
+---
+
+### 11. TypeError: Cannot read properties of undefined (reading 'includes')
+
+**Error Message**: 
+```
+Uncaught TypeError: Cannot read properties of undefined (reading 'includes')
+at AdminDashboard.jsx:1077:71
+```
+
+**Root Cause**: `roleAssignmentForm.allowedSections` was undefined when checking checkbox state
+
+**Solutions**:
+- ✅ Fixed - Added `useEffect` to initialize `allowedSections` as empty array
+- ✅ Fixed - Added safety checks using `(roleAssignmentForm.allowedSections || [])`
+- ✅ Fixed - Added `Array.isArray()` checks before mapping
+
+**Prevention**: Always initialize state objects with proper default values
+
+---
+
+### 12. Prisma Schema Sync Issues
+
+**Error Message**: 
+```
+TypeError: Cannot read properties of undefined (reading 'findMany') for prisma.dashboard_sections
+```
+
+**Root Cause**: Database schema not synced with Prisma client after adding new tables
+
+**Solutions**:
+- Run `node update-database.js` to add new columns/tables
+- Run `npx prisma db push` to sync schema
+- Run `npx prisma generate` to update client (may fail on Windows)
+- Restart backend server
+
+**Prevention**: Always run schema updates after making database changes
+
+---
+
+### 13. Role Assignment Modal Not Visible
+
+**Error Message**: No error, but role assignment modal doesn't appear
+
+**Root Cause**: JavaScript errors preventing modal from rendering
+
+**Solutions**:
+- Check browser console for errors
+- Ensure all required state variables are initialized
+- Verify modal JSX is properly structured
+- Check if `showRoleAssignmentModal` state is being set
+
+**Prevention**: Add error boundaries and proper state validation
+
+---
+
+### 14. Database Seeding Failures
+
+**Error Message**: 
+```
+Error during seeding: [specific error]
+```
+
+**Root Cause**: Database schema mismatch or connection issues
+
+**Solutions**:
+- Ensure database schema is up-to-date
+- Check database connection
+- Verify seed script has correct imports
+- Run `npx prisma db push` before seeding
+
+**Prevention**: Always sync schema before running seed scripts
+
+---
+
+### 15. Frontend Authentication Redirects
+
+**Error Message**: Users redirected to login even when authenticated
+
+**Root Cause**: JWT token validation or storage issues
+
+**Solutions**:
+- Check localStorage for valid authToken
+- Verify JWT_SECRET matches between frontend/backend
+- Check token expiration
+- Ensure proper token format in requests
+
+**Prevention**: Implement proper token refresh and validation logic
+
+## 🔧 Emergency Fixes
+
+### If Nothing Works - Complete Reset
+
+```bash
+# 1. Stop all servers
+# 2. Clear node_modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+
+# 3. Reset database schema
+npx prisma db push --force-reset
+
+# 4. Reseed database
+node prisma/seed.js
+
+# 5. Restart servers
+npm run server:prisma
+# In new terminal:
+npm run dev
+```
+
+### Database Connection Emergency
+
+```bash
+# If database is completely unreachable:
+# 1. Check .env file location (must be in root)
+# 2. Verify DATABASE_URL format
+# 3. Test connection manually
+# 4. Check firewall/network settings
+# 5. Contact database provider if using cloud service
+```
+
+## 📞 Getting Help
+
+When reporting issues, include:
+
+1. **Exact error message** from console/terminal
+2. **Steps to reproduce** the problem
+3. **Environment details** (OS, Node version, etc.)
+4. **Database type** (local PostgreSQL vs Prisma Data Platform)
+5. **Console logs** from both frontend and backend
+
+---
+
+**Remember**: Most issues stem from database connectivity, schema mismatches, or missing environment variables. Always check these first! 

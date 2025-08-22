@@ -12,6 +12,7 @@ const apiCall = async (endpoint, options = {}) => {
       'Content-Type': 'application/json',
       ...options.headers,
     },
+    credentials: 'include',
     ...options,
   };
 
@@ -101,7 +102,12 @@ export const authAPI = {
     return response;
   },
 
-  logout: () => {
+  logout: async () => {
+    try {
+      await apiCall('/auth/logout');
+    } catch (e) {
+      console.warn('Logout endpoint failed, clearing client session anyway:', e.message);
+    }
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
   },
@@ -112,7 +118,7 @@ export const authAPI = {
   },
 
   isAuthenticated: () => {
-    return !!localStorage.getItem('authToken');
+    return !!localStorage.getItem('authToken') || !!localStorage.getItem('user');
   },
 };
 
@@ -225,17 +231,51 @@ export const adminAPI = {
   },
 
   getUsers: async () => {
+    console.log('🔍 getUsers called');
     const response = await apiCall('/admin/users');
+    console.log('🔍 getUsers response:', response);
+    console.log('🔍 getUsers response type:', typeof response);
+    console.log('🔍 getUsers response length:', response?.length);
+    return response;
+  },
+
+  getDashboardSections: async () => {
+    console.log('🔍 getDashboardSections called');
+    const response = await apiCall('/admin/dashboard-sections');
+    console.log('🔍 getDashboardSections response:', response);
+    return response;
+  },
+
+  approveUser: async (userId, roleId, allowedSections) => {
+    console.log('🔍 approveUser called:', { userId, roleId, allowedSections });
+    const response = await apiCall('/admin/approve-user', {
+      method: 'POST',
+      body: JSON.stringify({ userId, roleId, allowedSections }),
+    });
+    return response;
+  },
+
+  getUserDashboardAccess: async () => {
+    console.log('🔍 getUserDashboardAccess called');
+    const response = await apiCall('/user/dashboard-access');
     return response;
   },
 
   getDepartments: async () => {
+    console.log('🔍 getDepartments called');
     const response = await apiCall('/admin/departments');
+    console.log('🔍 getDepartments response:', response);
+    console.log('🔍 getDepartments response type:', typeof response);
+    console.log('🔍 getDepartments response length:', response?.length);
     return response;
   },
 
   getRoles: async () => {
+    console.log('🔍 getRoles called');
     const response = await apiCall('/admin/roles');
+    console.log('🔍 getRoles response:', response);
+    console.log('🔍 getRoles response type:', typeof response);
+    console.log('🔍 getRoles response length:', response?.length);
     return response;
   },
 };
@@ -267,12 +307,13 @@ export const referenceAPI = {
 export const createUser = adminAPI.createUser;
 export const deleteUser = adminAPI.deleteUser;
 export const updateUser = adminAPI.updateUser;
-export const createDepartment = adminAPI.createDepartment;
-export const createRole = adminAPI.createRole;
-export const getSystemHealth = adminAPI.getSystemHealth;
-export const getUsers = adminAPI.getUsers || referenceAPI.getUsers;
-export const getDepartments = adminAPI.getDepartments || referenceAPI.getDepartments;
-export const getRoles = adminAPI.getRoles || referenceAPI.getRoles;
+export const updateUserRole = adminAPI.updateUserRole;
+export const updateUserStatus = adminAPI.updateUserStatus;
+export const getUsers = adminAPI.getUsers;
+export const getRoles = adminAPI.getRoles;
+export const getDashboardSections = adminAPI.getDashboardSections;
+export const approveUser = adminAPI.approveUser;
+export const getUserDashboardAccess = adminAPI.getUserDashboardAccess;
 
 // Health check
 export const healthCheck = async () => {

@@ -5,6 +5,7 @@ import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import AddRiskPage from './components/AddRiskPage';
 import AdminDashboard from './components/AdminDashboard';
+import RoleBasedDashboard from './components/RoleBasedDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -27,12 +28,22 @@ function App() {
             } 
           />
 
-          {/* Admin Dashboard - Only for System Administrators */}
+          {/* Admin Dashboard - Only for System Administrators and Admins */}
           <Route 
             path="/admin" 
             element={
-              <ProtectedRoute requiredRoles={['System Administrator']}>
+              <ProtectedRoute requiredRoles={['SystemAdmin', 'Admin']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Role-Based Dashboard - For all approved users */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <RoleBasedDashboard />
               </ProtectedRoute>
             } 
           />

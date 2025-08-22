@@ -1,41 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  UserPlusIcon, 
-  UsersIcon, 
-  BuildingOfficeIcon, 
+import { useNavigate } from 'react-router-dom';
+import {
   ShieldCheckIcon,
+  UsersIcon,
   ChartBarIcon,
   CogIcon,
-  TrashIcon,
+  ClockIcon,
+  PlusIcon,
   PencilIcon,
-  EyeIcon
+  TrashIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
-import { 
-  createUser, 
-  getUsers, 
-  deleteUser, 
-  updateUser, 
-  createDepartment, 
-  createRole, 
-  getDepartments, 
-  getRoles,
-  getSystemHealth 
+import {
+  createUser,
+  deleteUser,
+  updateUser,
+  updateUserRole,
+  updateUserStatus,
+  getDashboardSections,
+  approveUser,
+  getUsers,
+  getRoles
 } from '../services/api';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [users, setUsers] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
-  const [systemHealth, setSystemHealth] = useState({});
+  const [dashboardSections, setDashboardSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const navigate = useNavigate();
 
   // Form states
   const [showUserForm, setShowUserForm] = useState(false);
-  const [showDepartmentForm, setShowDepartmentForm] = useState(false);
-  const [showRoleForm, setShowRoleForm] = useState(false);
+  const [showRoleAssignmentModal, setShowRoleAssignmentModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [userToApprove, setUserToApprove] = useState(null);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
 
   // Form data
   const [userForm, setUserForm] = useState({
@@ -49,41 +54,149 @@ const AdminDashboard = () => {
     password: ''
   });
 
-  const [departmentForm, setDepartmentForm] = useState({
-    name: '',
-    code: '',
-    description: ''
+  const [roleAssignmentForm, setRoleAssignmentForm] = useState({
+    roleId: '',
+    departmentId: '',
+    allowedSections: []
   });
 
-  const [roleForm, setRoleForm] = useState({
-    name: '',
-    description: '',
-    permissions: ''
-  });
-
+  // Check authentication on component mount
   useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setError('Authentication required. Please log in.');
+      setLoading(false);
+      return;
+    }
+    
+    // If authenticated, load dashboard data
     loadDashboardData();
+  }, []);
+
+  // Initialize roleAssignmentForm when userToApprove changes
+  useEffect(() => {
+    if (userToApprove) {
+      setRoleAssignmentForm({
+        roleId: '',
+        departmentId: '',
+        allowedSections: []
+      });
+    }
+  }, [userToApprove]);
+
+  // Auto-clear success messages after 5 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  // Auto-clear error messages after 8 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Auto-refresh dashboard data every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [usersData, deptsData, rolesData, healthData] = await Promise.all([
-        getUsers(),
-        getDepartments(),
-        getRoles(),
-        getSystemHealth()
-      ]);
+      setError(null);
       
-      setUsers(usersData || []);
-      setDepartments(deptsData || []);
-      setRoles(rolesData || []);
-      setSystemHealth(healthData || {});
+      console.log('Loading dashboard data...');
+      
+      // Load data sequentially to avoid race conditions
+      const usersData = await getUsers();
+      console.log('Users loaded:', usersData);
+      console.log('Users data type:', typeof usersData);
+      console.log('Users data structure:', JSON.stringify(usersData, null, 2));
+      
+      // For now, we'll use a simple roles array since we don't have a getRoles endpoint
+      // In a real implementation, you'd have a getRoles() function
+      const rolesData = await getRoles();
+      console.log('Roles loaded:', rolesData);
+      
+      const sectionsData = await getDashboardSections();
+      console.log('Dashboard sections loaded:', sectionsData);
+      console.log('Sections data type:', typeof sectionsData);
+      
+      // Ensure we have arrays and handle different response formats
+      const usersArray = Array.isArray(usersData) ? usersData : (usersData?.data || usersData?.users || []);
+      const rolesArray = Array.isArray(rolesData) ? rolesData : (rolesData?.data || rolesData?.roles || []);
+      const sectionsArray = Array.isArray(sectionsData) ? sectionsData : (sectionsData?.data || sectionsData?.sections || []);
+      
+      console.log('Processed arrays:', {
+        users: usersArray,
+        roles: rolesArray,
+        sections: sectionsArray
+      });
+      
+      // Set the data in state
+      setUsers(usersArray);
+      setRoles(rolesArray);
+      setDashboardSections(sectionsArray);
+      
+      console.log('Dashboard data loaded successfully:', {
+        users: usersArray.length,
+        roles: rolesArray.length,
+        sections: sectionsArray.length
+      });
+      
+      console.log('State updated with:', {
+        usersState: usersArray.length,
+        rolesState: rolesArray.length,
+        sectionsState: sectionsArray.length
+      });
+      
     } catch (err) {
-      setError('Failed to load dashboard data: ' + err.message);
+      console.error('Dashboard data load error:', err);
+      
+      // Handle different types of errors
+      if (err.message.includes('Access token required') || err.message.includes('401')) {
+        setError('Your session has expired. Please log in again.');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        navigate('/login');
+      } else if (err.message.includes('403')) {
+        setError('Access denied. You do not have permission to view this dashboard.');
+      } else if (err.message.includes('Database connection lost') || err.message.includes('503')) {
+        setError('Database connection lost. Please refresh the page to try again.');
+      } else {
+        setError('Failed to load dashboard data: ' + err.message);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    // Clear selected users when switching tabs
+    if (tabId !== 'requests') {
+      setSelectedUsers([]);
+      setShowBulkActions(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    navigate('/login');
   };
 
   const handleCreateUser = async (e) => {
@@ -103,30 +216,6 @@ const AdminDashboard = () => {
       loadDashboardData();
     } catch (err) {
       setError('Failed to create user: ' + err.message);
-    }
-  };
-
-  const handleCreateDepartment = async (e) => {
-    e.preventDefault();
-    try {
-      await createDepartment(departmentForm);
-      setShowDepartmentForm(false);
-      setDepartmentForm({ name: '', code: '', description: '' });
-      loadDashboardData();
-    } catch (err) {
-      setError('Failed to create department: ' + err.message);
-    }
-  };
-
-  const handleCreateRole = async (e) => {
-    e.preventDefault();
-    try {
-      await createRole(roleForm);
-      setShowRoleForm(false);
-      setRoleForm({ name: '', description: '', permissions: '' });
-      loadDashboardData();
-    } catch (err) {
-      setError('Failed to create role: ' + err.message);
     }
   };
 
@@ -169,12 +258,163 @@ const AdminDashboard = () => {
     setShowUserForm(true);
   };
 
+  const handleApproveUser = async (userId) => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setUserToApprove(user);
+      setRoleAssignmentForm({ roleId: '', departmentId: '' });
+      setShowRoleAssignmentModal(true);
+    }
+  };
+
+  const handleRejectUser = async (userId) => {
+    if (window.confirm('Are you sure you want to reject this user access request?')) {
+      try {
+        await updateUserStatus(userId, 'rejected');
+        setSuccess('User access request rejected');
+        loadDashboardData();
+      } catch (err) {
+        setError('Failed to reject user: ' + err.message);
+      }
+    }
+  };
+
+  const handleApproveWithRole = async (e) => {
+    e.preventDefault();
+    
+    if (!roleAssignmentForm.roleId) {
+      setError('Please select a role');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      await approveUser(
+        userToApprove.id, 
+        roleAssignmentForm.roleId, 
+        roleAssignmentForm.allowedSections
+      );
+      
+      setSuccess('User approved and role assigned successfully!');
+      setShowRoleAssignmentModal(false);
+      setUserToApprove(null);
+      setRoleAssignmentForm({ roleId: '', departmentId: '', allowedSections: [] });
+      
+      // Reload dashboard data
+      loadDashboardData();
+      
+    } catch (err) {
+      setError('Failed to approve user: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedUsers.length === 0) {
+      setError('Please select at least one user to approve.');
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to approve ${selectedUsers.length} selected user(s)?`)) {
+      try {
+        for (const userId of selectedUsers) {
+          await updateUserStatus(userId, 'approved');
+          // Optionally, assign a default role or specific role if needed
+          await updateUserRole(userId, 1); // Assuming role ID 1 is the default approved role
+        }
+        setSuccess(`Successfully approved ${selectedUsers.length} user(s).`);
+        setSelectedUsers([]);
+        loadDashboardData();
+      } catch (err) {
+        setError('Failed to bulk approve users: ' + err.message);
+      }
+    }
+  };
+
+  const handleBulkReject = async () => {
+    if (selectedUsers.length === 0) {
+      setError('Please select at least one user to reject.');
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to reject ${selectedUsers.length} selected user(s)?`)) {
+      try {
+        for (const userId of selectedUsers) {
+          await updateUserStatus(userId, 'rejected');
+        }
+        setSuccess(`Successfully rejected ${selectedUsers.length} user(s).`);
+        setSelectedUsers([]);
+        loadDashboardData();
+      } catch (err) {
+        setError('Failed to bulk reject users: ' + err.message);
+      }
+    }
+  };
+
+  const exportPendingRequests = () => {
+    const pendingUsers = users.filter(user => user.status === 'pending');
+    if (pendingUsers.length === 0) {
+      setError('No pending requests to export');
+      return;
+    }
+
+    const csvData = [
+      ['Name', 'Email', 'Employee ID', 'Request Date', 'Status'],
+      ...pendingUsers.map(user => [
+        `${user.first_name} ${user.last_name}`,
+        user.email,
+        user.employee_id || 'Auto-generated',
+        new Date(user.created_at || Date.now()).toLocaleDateString(),
+        user.status
+      ])
+    ];
+
+    const csvContent = csvData.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pending-requests-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    setSuccess('Pending requests exported successfully');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show authentication required message if not logged in
+  if (!localStorage.getItem('authToken')) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <ShieldCheckIcon className="mx-auto h-16 w-16 text-red-500 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h2>
+          <p className="text-gray-600 mb-6">You must be logged in to access the admin dashboard.</p>
+          <div className="space-x-4">
+            <button
+              onClick={() => navigate('/login')}
+              className="px-6 py-3 bg-primary text-white rounded-md hover:bg-black transition-colors"
+            >
+              Go to Login
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Back to Home
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -192,7 +432,10 @@ const AdminDashboard = () => {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">System Administrator</span>
-              <button className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
+              <button 
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
                 Logout
               </button>
             </div>
@@ -203,13 +446,12 @@ const AdminDashboard = () => {
             {[
               { id: 'overview', name: 'Overview', icon: ChartBarIcon },
               { id: 'users', name: 'User Management', icon: UsersIcon },
-              { id: 'departments', name: 'Departments', icon: BuildingOfficeIcon },
-              { id: 'roles', name: 'Roles & Permissions', icon: ShieldCheckIcon },
-              { id: 'system', name: 'System Health', icon: CogIcon }
+              { id: 'system', name: 'System Health', icon: CogIcon },
+              { id: 'requests', name: 'Pending Requests', icon: ClockIcon }
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
                     ? 'border-primary text-primary'
@@ -218,6 +460,11 @@ const AdminDashboard = () => {
               >
                 <tab.icon className="h-5 w-5" />
                 <span>{tab.name}</span>
+                {tab.id === 'requests' && users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').length > 0 && (
+                  <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                    {users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').length}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -228,14 +475,50 @@ const AdminDashboard = () => {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <p className="text-red-800">{error}</p>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="text-red-800">{error}</p>
+                {error.includes('Database connection lost') && (
+                  <button
+                    onClick={loadDashboardData}
+                    className="mt-2 px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
+                  >
+                    🔄 Retry Connection
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="ml-4 text-red-400 hover:text-red-600"
+              >
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
+            <div className="flex justify-between items-start">
+              <p className="text-green-800">{success}</p>
+              <button
+                onClick={() => setSuccess(null)}
+                className="ml-4 text-green-400 hover:text-green-600"
+              >
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
 
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white overflow-hidden shadow rounded-lg">
                 <div className="p-5">
                   <div className="flex items-center">
@@ -245,7 +528,7 @@ const AdminDashboard = () => {
                     <div className="ml-5 w-0 flex-1">
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">Total Users</dt>
-                        <dd className="text-lg font-medium text-gray-900">{users.length}</dd>
+                        <dd className="text-lg font-medium text-blue-600">{users.length}</dd>
                       </dl>
                     </div>
                   </div>
@@ -256,44 +539,12 @@ const AdminDashboard = () => {
                 <div className="p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
-                      <BuildingOfficeIcon className="h-6 w-6 text-green-600" />
+                      <ClockIcon className="h-6 w-6 text-yellow-600" />
                     </div>
                     <div className="ml-5 w-0 flex-1">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">Departments</dt>
-                        <dd className="text-lg font-medium text-gray-900">{departments.length}</dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <ShieldCheckIcon className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">Roles</dt>
-                        <dd className="text-lg font-medium text-gray-900">{roles.length}</dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <CogIcon className="h-6 w-6 text-yellow-600" />
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">System Status</dt>
-                        <dd className="text-lg font-medium text-green-600">Healthy</dd>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Pending Requests</dt>
+                        <dd className="text-lg font-medium text-yellow-600">{users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').length}</dd>
                       </dl>
                     </div>
                   </div>
@@ -303,29 +554,81 @@ const AdminDashboard = () => {
 
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    onClick={() => handleTabChange('requests')}
+                    className="flex items-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors"
+                  >
+                    <ClockIcon className="h-8 w-8 text-yellow-600 mr-3" />
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-yellow-800">Review Pending Requests</p>
+                      <p className="text-xs text-yellow-600">
+                        {users.filter(user => user.status === 'pending').length} requests waiting
+                      </p>
+                    </div>
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowUserForm(true)}
+                    className="flex items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <PlusIcon className="h-8 w-8 text-blue-600 mr-3" />
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-blue-800">Add New User</p>
+                      <p className="text-xs text-blue-600">Create user account manually</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
                 <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Recent Activities</h3>
                 <div className="space-y-4">
                   {users.length > 0 ? (
-                    users.slice(0, 5).map((user) => (
-                      <div key={user.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex-shrink-0 h-8 w-8">
-                          <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                            <span className="text-xs font-medium text-white">
-                              {user.first_name?.[0]}{user.last_name?.[0]}
-                            </span>
+                    <>
+                      {/* Show pending requests first */}
+                      {users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').slice(0, 3).map((user) => (
+                        <div key={user.id} className="flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <div className="flex-shrink-0 h-8 w-8">
+                            <div className="h-8 w-8 rounded-full bg-yellow-500 flex items-center justify-center">
+                              <ClockIcon className="h-4 w-4 text-white" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-yellow-800">
+                              Pending access request: {user.first_name} {user.last_name}
+                            </p>
+                            <p className="text-sm text-yellow-600">{user.email}</p>
+                          </div>
+                          <div className="text-sm text-yellow-600">
+                            {new Date(user.created_at || Date.now()).toLocaleDateString()}
                           </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900">
-                            New user registered: {user.first_name} {user.last_name}
-                          </p>
-                          <p className="text-sm text-gray-500">{user.email}</p>
+                      ))}
+                      
+                      {/* Show recent approved users */}
+                      {users.filter(user => user.status === 'approved').slice(0, 5).map((user) => (
+                        <div key={user.id} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                          <div className="flex-shrink-0 h-8 w-8">
+                            <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center">
+                              <CheckCircleIcon className="h-4 w-4 text-white" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-green-800">
+                              User approved: {user.first_name} {user.last_name}
+                            </p>
+                            <p className="text-sm text-green-600">{user.email}</p>
+                          </div>
+                          <div className="text-sm text-green-600">
+                            {new Date(user.created_at || Date.now()).toLocaleDateString()}
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {new Date(user.created_at || Date.now()).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))
+                      ))}
+                    </>
                   ) : (
                     <div className="text-center py-8">
                       <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,17 +644,17 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Users Tab */}
+        {/* User Management Tab */}
         {activeTab === 'users' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
+              <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
               <button
                 onClick={() => setShowUserForm(true)}
-                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-black transition-colors flex items-center"
+                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center space-x-2"
               >
-                <UserPlusIcon className="h-5 w-5 mr-2" />
-                Add User
+                <PlusIcon className="h-5 w-5" />
+                <span>+ Add</span>
               </button>
             </div>
 
@@ -360,104 +663,57 @@ const AdminDashboard = () => {
                 {users.map((user) => (
                   <li key={user.id} className="px-6 py-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
-                            <span className="text-sm font-medium text-white">
-                              {user.first_name?.[0]}{user.last_name?.[0]}
-                            </span>
-                          </div>
+                      <div className="flex items-center space-x-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                          user.status === 'approved' ? 'bg-green-500' : 'bg-yellow-500'
+                        }`}>
+                          {user.first_name?.[0]}{user.last_name?.[0]}
                         </div>
-                        <div className="ml-4">
+                        <div>
                           <div className="text-sm font-medium text-gray-900">
                             {user.first_name} {user.last_name}
                           </div>
                           <div className="text-sm text-gray-500">{user.email}</div>
-                          <div className="text-sm text-gray-500">
-                            {departments.find(d => d.id === user.department_id)?.department_name || 'No Department'}
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              user.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {user.status || 'pending'}
+                            </span>
+                            {user.status === 'approved' && user.assigned_role && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {user.assigned_role}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
+                        {user.status === 'pending' || !user.status ? (
+                          <>
+                            <button
+                              onClick={() => handleApproveUser(user)}
+                              className="text-green-600 hover:text-green-900 p-1"
+                              title="Approve"
+                            >
+                              <CheckCircleIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleRejectUser(user.id)}
+                              className="text-red-600 hover:text-red-900 p-1"
+                              title="Reject"
+                            >
+                              <XCircleIcon className="h-5 w-5" />
+                            </button>
+                          </>
+                        ) : null}
                         <button
-                          onClick={() => startEditUser(user)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
+                          onClick={() => handleEditUser(user)}
+                          className="text-blue-600 hover:text-blue-900 p-1"
+                          title="Edit"
                         >
-                          <PencilIcon className="h-4 w-4" />
+                          <PencilIcon className="h-5 w-5" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-md"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* Departments Tab */}
-        {activeTab === 'departments' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Department Management</h2>
-              <button
-                onClick={() => setShowDepartmentForm(true)}
-                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-black transition-colors flex items-center"
-              >
-                <BuildingOfficeIcon className="h-5 w-5 mr-2" />
-                Add Department
-              </button>
-            </div>
-
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-              <ul className="divide-y divide-gray-200">
-                {departments.map((dept) => (
-                  <li key={dept.id} className="px-6 py-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{dept.department_name}</div>
-                        <div className="text-sm text-gray-500">{dept.department_code}</div>
-                        <div className="text-sm text-gray-500">{dept.description}</div>
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {dept.is_active ? 'Active' : 'Inactive'}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* Roles Tab */}
-        {activeTab === 'roles' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Role Management</h2>
-              <button
-                onClick={() => setShowRoleForm(true)}
-                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-black transition-colors flex items-center"
-              >
-                <ShieldCheckIcon className="h-5 w-5 mr-2" />
-                Add Role
-              </button>
-            </div>
-
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-              <ul className="divide-y divide-gray-200">
-                {roles.map((role) => (
-                  <li key={role.id} className="px-6 py-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{role.role_name}</div>
-                        <div className="text-sm text-gray-500">{role.description}</div>
-                        <div className="text-sm text-gray-500">{role.permissions}</div>
                       </div>
                     </div>
                   </li>
@@ -501,6 +757,150 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Pending Requests Tab */}
+        {activeTab === 'requests' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">Pending Access Requests</h2>
+              <div className="flex items-center space-x-4">
+                <div className="text-sm text-gray-600">
+                  {users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').length} pending requests
+                </div>
+                {users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').length > 0 && (
+                  <>
+                    <button
+                      onClick={exportPendingRequests}
+                      className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                    >
+                      Export CSV
+                    </button>
+                    <button
+                      onClick={() => setShowBulkActions(!showBulkActions)}
+                      className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                      {showBulkActions ? 'Hide' : 'Show'} Bulk Actions
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {showBulkActions && (
+              <div className="bg-white shadow rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.length === users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedUsers(users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').map(u => u.id));
+                          } else {
+                            setSelectedUsers([]);
+                          }
+                        }}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Select All</span>
+                    </label>
+                    <span className="text-sm text-gray-600">
+                      {selectedUsers.length} of {users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').length} selected
+                    </span>
+                  </div>
+                  {selectedUsers.length > 0 && (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleBulkApprove()}
+                        className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors"
+                      >
+                        Approve Selected ({selectedUsers.length})
+                      </button>
+                      <button
+                        onClick={() => handleBulkReject()}
+                        className="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
+                      >
+                        Reject Selected ({selectedUsers.length})
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').length === 0 ? (
+              <div className="bg-white shadow rounded-lg p-8 text-center">
+                <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No pending requests</h3>
+                <p className="mt-1 text-sm text-gray-500">All access requests have been processed.</p>
+              </div>
+            ) : (
+              <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                <ul className="divide-y divide-gray-200">
+                  {users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').map((user) => (
+                    <li key={user.id} className="px-6 py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          {showBulkActions && (
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(user.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUsers([...selectedUsers, user.id]);
+                                } else {
+                                  setSelectedUsers(selectedUsers.filter(id => id !== user.id));
+                                }
+                              }}
+                              className="mr-3 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                          )}
+                          <div className="flex-shrink-0 h-10 w-10">
+                            <div className="h-10 w-10 rounded-full bg-yellow-500 flex items-center justify-center">
+                              <ClockIcon className="h-5 w-5 text-white" />
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {user.first_name} {user.last_name}
+                            </div>
+                            <div className="text-sm text-gray-500">{user.email}</div>
+                            <div className="text-sm text-gray-500">
+                              Employee ID: {user.employee_id || 'Auto-generated'}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Status: {user.status || 'No status set'}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Requested: {new Date(user.created_at || Date.now()).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleApproveUser(user.id)}
+                            className="px-3 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors flex items-center"
+                          >
+                            <CheckCircleIcon className="h-4 w-4 mr-1" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectUser(user.id)}
+                            className="px-3 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors flex items-center"
+                          >
+                            <XCircleIcon className="h-4 w-4 mr-1" />
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -563,9 +963,9 @@ const AdminDashboard = () => {
                     required
                   >
                     <option value="">Select Department</option>
-                    {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.department_name}</option>
-                    ))}
+                    {/* departments.map(dept => ( // Removed as per edit hint */}
+                      {/* <option key={dept.id} value={dept.id}>{dept.department_name}</option> */}
+                    {/* ))} */}
                   </select>
                 </div>
                 <div>
@@ -577,9 +977,9 @@ const AdminDashboard = () => {
                     required
                   >
                     <option value="">Select Role</option>
-                    {roles.map(role => (
-                      <option key={role.id} value={role.id}>{role.role_name}</option>
-                    ))}
+                    {/* roles.map(role => ( // Removed as per edit hint */}
+                      {/* <option key={role.id} value={role.id}>{role.role_name}</option> */}
+                    {/* ))} */}
                   </select>
                 </div>
                 <div>
@@ -628,112 +1028,78 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Department Form Modal */}
-      {showDepartmentForm && (
+      {/* Role Assignment Modal */}
+      {showRoleAssignmentModal && userToApprove && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Department</h3>
-              <form onSubmit={handleCreateDepartment} className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Approve User: {userToApprove.first_name} {userToApprove.last_name}
+              </h3>
+              <form onSubmit={handleApproveWithRole} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Department Name</label>
-                  <input
-                    type="text"
-                    value={departmentForm.name}
-                    onChange={(e) => setDepartmentForm({...departmentForm, name: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700">Role</label>
+                  <select
+                    value={roleAssignmentForm.roleId}
+                    onChange={(e) => setRoleAssignmentForm({...roleAssignmentForm, roleId: e.target.value})}
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
                     required
-                  />
+                  >
+                    <option value="">Select Role</option>
+                    {Array.isArray(roles) && roles.map(role => (
+                      <option key={role.id} value={role.id}>{role.role_name}</option>
+                    ))}
+                  </select>
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Department Code</label>
-                  <input
-                    type="text"
-                    value={departmentForm.code}
-                    onChange={(e) => setDepartmentForm({...departmentForm, code: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
-                    required
-                  />
+                  <label className="block text-sm font-medium text-gray-700">Dashboard Access</label>
+                  <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                    {Array.isArray(dashboardSections) && dashboardSections.map(section => (
+                      <label key={section.id} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={(roleAssignmentForm.allowedSections || []).includes(section.section_name)}
+                          onChange={(e) => {
+                            const currentSections = roleAssignmentForm.allowedSections || [];
+                            if (e.target.checked) {
+                              setRoleAssignmentForm({
+                                ...roleAssignmentForm,
+                                allowedSections: [...currentSections, section.section_name]
+                              });
+                            } else {
+                              setRoleAssignmentForm({
+                                ...roleAssignmentForm,
+                                allowedSections: currentSections.filter(s => s !== section.section_name)
+                              });
+                            }
+                          }}
+                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">{section.display_name}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
-                  <textarea
-                    value={departmentForm.description}
-                    onChange={(e) => setDepartmentForm({...departmentForm, description: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
-                    rows="3"
-                  />
-                </div>
+                
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
-                    onClick={() => setShowDepartmentForm(false)}
+                    onClick={() => {
+                      setShowRoleAssignmentModal(false);
+                      setUserToApprove(null);
+                      setRoleAssignmentForm({ roleId: '', departmentId: '', allowedSections: [] });
+                    }}
                     className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-black"
+                    disabled={loading}
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-black disabled:opacity-50"
                   >
-                    Create
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Role Form Modal */}
-      {showRoleForm && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Role</h3>
-              <form onSubmit={handleCreateRole} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Role Name</label>
-                  <input
-                    type="text"
-                    value={roleForm.name}
-                    onChange={(e) => setRoleForm({...roleForm, name: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
-                  <textarea
-                    value={roleForm.description}
-                    onChange={(e) => setRoleForm({...roleForm, description: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
-                    rows="3"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Permissions</label>
-                  <input
-                    type="text"
-                    value={roleForm.permissions}
-                    onChange={(e) => setRoleForm({...roleForm, permissions: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
-                    placeholder="e.g., read, write, admin"
-                  />
-                </div>
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowRoleForm(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-black"
-                  >
-                    Create
+                    {loading ? 'Approving...' : 'Approve User'}
                   </button>
                 </div>
               </form>

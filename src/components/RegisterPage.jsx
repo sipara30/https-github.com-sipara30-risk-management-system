@@ -7,59 +7,103 @@ const RegisterPage = () => {
     firstName: '',
     lastName: '',
     email: '',
-    employeeId: '',
-    departmentId: '',
     password: '',
     confirmPassword: ''
   });
-  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadDepartments();
-  }, []);
+    // loadDepartments(); // Removed as per requirements
+    console.log('Form data changed:', formData);
+  }, [formData]);
 
-  const loadDepartments = async () => {
-    try {
-      const depts = await referenceAPI.getDepartments();
-      setDepartments(depts);
-    } catch (error) {
-      console.error('Failed to load departments:', error);
-    }
-  };
+  // const loadDepartments = async () => { // Removed as per requirements
+  //   try {
+  //     const depts = await referenceAPI.getDepartments();
+  //     setDepartments(depts);
+  //   } catch (error) {
+  //     console.error('Failed to load departments:', error);
+  //   }
+  // };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    console.log(`Field ${name} changed to:`, value);
+    console.log(`Field ${name} value length:`, value ? value.length : 'undefined');
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [name]: value
+      };
+      console.log('Updated form data:', newData);
+      return newData;
+    });
     // Clear messages when user starts typing
     if (error) setError('');
     if (success) setSuccess('');
   };
 
   const validateForm = () => {
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    console.log('Validating form data:', formData);
+    console.log('Password field value:', formData.password);
+    console.log('Password field type:', typeof formData.password);
+    console.log('Password field length:', formData.password ? formData.password.length : 'undefined');
+    
+    // Check for empty required fields first
+    if (!formData.firstName.trim()) {
+      console.log('First name validation failed');
+      setError('First Name is required');
       return false;
     }
+    if (!formData.lastName.trim()) {
+      console.log('Last name validation failed');
+      setError('Last Name is required');
+      return false;
+    }
+    if (!formData.email.trim()) {
+      console.log('Email validation failed');
+      setError('Email Address is required');
+      return false;
+    }
+    if (!formData.password) {
+      console.log('Password validation failed - password is empty');
+      setError('Password is required');
+      return false;
+    }
+    if (!formData.confirmPassword) {
+      console.log('Confirm password validation failed');
+      setError('Confirm Password is required');
+      return false;
+    }
+    
+    console.log('Password length:', formData.password.length);
+    // Check password length
     if (formData.password.length < 8) {
+      console.log('Password length validation failed');
       setError('Password must be at least 8 characters long');
       return false;
     }
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.employeeId || !formData.departmentId) {
-      setError('Please fill in all required fields');
+    
+    // Check if passwords match
+    if (formData.password !== formData.confirmPassword) {
+      console.log('Password match validation failed');
+      setError('Passwords do not match');
       return false;
     }
+    
+    console.log('All validations passed');
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Small delay to ensure state is updated
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
     if (!validateForm()) return;
 
     setLoading(true);
@@ -67,8 +111,11 @@ const RegisterPage = () => {
     setSuccess('');
 
     try {
-      await authAPI.register(formData);
-             setSuccess('Access request submitted successfully! Please wait for administrator approval.');
+      // Only send the required fields to the backend
+      const { confirmPassword, ...registrationData } = formData;
+      console.log('Sending registration data:', registrationData);
+      await authAPI.register(registrationData);
+      setSuccess('Access request submitted successfully! Please wait for administrator approval.');
       
       // Redirect to login after 2 seconds
       setTimeout(() => {
@@ -181,42 +228,7 @@ const RegisterPage = () => {
               />
             </div>
 
-            <div>
-              <label htmlFor="employeeId" className="block text-sm font-medium text-gray-700 mb-2">
-                Employee ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="employeeId"
-                name="employeeId"
-                type="text"
-                required
-                value={formData.employeeId}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                placeholder="Enter employee ID"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="departmentId" className="block text-sm font-medium text-gray-700 mb-2">
-                Department <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="departmentId"
-                name="departmentId"
-                required
-                value={formData.departmentId}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              >
-                <option value="">Select department</option>
-                {departments.map(dept => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.department_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Employee ID removed; will be auto-generated server-side if needed */}
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
@@ -230,6 +242,7 @@ const RegisterPage = () => {
                 required
                 value={formData.password}
                 onChange={handleChange}
+                onBlur={() => console.log('Password field onBlur - current value:', formData.password)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                 placeholder="Create a password"
               />
@@ -270,6 +283,20 @@ const RegisterPage = () => {
                 ) : (
                   'Request Access'
                 )}
+              </button>
+              
+              {/* Debug button - remove this after fixing */}
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('Current form data:', formData);
+                  console.log('Password field:', formData.password);
+                  console.log('Password length:', formData.password ? formData.password.length : 'undefined');
+                  validateForm();
+                }}
+                className="mt-2 w-full py-2 px-4 border border-gray-300 rounded-lg text-sm text-gray-700 bg-gray-100 hover:bg-gray-200"
+              >
+                Debug Form State
               </button>
             </div>
           </form>

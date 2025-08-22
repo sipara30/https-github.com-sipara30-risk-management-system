@@ -82,12 +82,17 @@ const LoginPage = () => {
       const response = await authAPI.login(formData.email, formData.password);
       console.log('✅ Login successful:', response);
       
-      // Redirect based on user role
+      // Redirect based on user role and permissions
       const user = response.user;
-      if (user.roles && user.roles.includes('System Administrator')) {
-        navigate('/admin'); // System Administrators go to admin dashboard
+      const roles = user.roles || [];
+      const permissions = user.permissions || {};
+      
+      // Check if user has admin privileges
+      if (roles.includes('SystemAdmin') || roles.includes('Admin')) {
+        navigate('/admin');
       } else {
-        navigate('/'); // Other users go to landing page
+        // All other approved users go to the role-based dashboard
+        navigate('/dashboard');
       }
     } catch (error) {
       console.error('❌ Login error:', error);

@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -66,9 +63,20 @@ model roles {
   id          Int          @id @default(autoincrement())
   role_name   String       @unique
   description String?
-  permissions Json?
+  permissions Json?        // Detailed permissions object
+  default_dashboard_sections Json? // Default dashboard sections for this role
   created_at  DateTime     @default(now())
   user_roles  user_roles[]
+}
+
+// New model for dashboard sections
+model dashboard_sections {
+  id          Int      @id @default(autoincrement())
+  section_name String  @unique
+  display_name String
+  description String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
 }
 
 model user_roles {
@@ -92,6 +100,14 @@ model users {
   hire_date                          DateTime?
   employment_status                  String       @default("Active")
   password_hash                      String?
+  username                           String?      @unique
+  status                             String       @default("pending")
+  email_verified                     Boolean      @default(false)
+  verification_token                 String?
+  // Role-based access control fields
+  assigned_role                      String?      // Direct role assignment for quick access
+  allowed_dashboard_sections        Json?        // Array of allowed dashboard sections
+  permissions                        Json?        // Detailed permissions object
   created_at                         DateTime     @default(now())
   risks_risks_created_by_idTousers   risks[]      @relation("risks_created_by_idTousers")
   risks_risks_risk_manager_idTousers risks[]      @relation("risks_risk_manager_idTousers")
