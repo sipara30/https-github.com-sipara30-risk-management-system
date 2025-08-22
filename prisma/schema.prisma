@@ -1,0 +1,102 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model departments {
+  id              Int      @id @default(autoincrement())
+  department_name String   @unique
+  department_code String?
+  description     String?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  risks           risks[]
+  users           users[]
+}
+
+model risk_categories {
+  id               Int      @id @default(autoincrement())
+  category_name    String   @unique
+  category_code    String?
+  description      String?
+  risk_register_id Int?
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  risks            risks[]
+}
+
+model risks {
+  id                                 Int              @id @default(autoincrement())
+  risk_code                          String           @unique
+  risk_title                         String
+  risk_description                   String
+  what_can_happen                    String?
+  risk_register_id                   Int?
+  risk_category_id                   Int?
+  department_id                      Int?
+  risk_owner_id                      Int?
+  risk_manager_id                    Int?
+  system_user_id                     Int?
+  status                             String           @default("Identified")
+  priority                           String           @default("Medium")
+  identified_date                    DateTime?
+  last_review_date                   DateTime?
+  next_review_date                   DateTime?
+  documentation_status               String           @default("Draft")
+  created_by_id                      Int?
+  created_at                         DateTime         @default(now())
+  updated_by_id                      Int?
+  updated_at                         DateTime         @default(now())
+  users_risks_created_by_idTousers   users?           @relation("risks_created_by_idTousers", fields: [created_by_id], references: [id])
+  departments                        departments?     @relation(fields: [department_id], references: [id])
+  risk_categories                    risk_categories? @relation(fields: [risk_category_id], references: [id])
+  users_risks_risk_manager_idTousers users?           @relation("risks_risk_manager_idTousers", fields: [risk_manager_id], references: [id])
+  users_risks_risk_owner_idTousers   users?           @relation("risks_risk_owner_idTousers", fields: [risk_owner_id], references: [id])
+  users_risks_updated_by_idTousers   users?           @relation("risks_updated_by_idTousers", fields: [updated_by_id], references: [id])
+}
+
+model roles {
+  id          Int          @id @default(autoincrement())
+  role_name   String       @unique
+  description String?
+  permissions Json?
+  created_at  DateTime     @default(now())
+  user_roles  user_roles[]
+}
+
+model user_roles {
+  id      Int   @id @default(autoincrement())
+  user_id Int
+  role_id Int
+  roles   roles @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  users   users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, role_id])
+}
+
+model users {
+  id                                 Int          @id @default(autoincrement())
+  employee_id                        String       @unique
+  first_name                         String
+  last_name                          String
+  email                              String       @unique
+  position_id                        Int?
+  department_id                      Int?
+  hire_date                          DateTime?
+  employment_status                  String       @default("Active")
+  password_hash                      String?
+  created_at                         DateTime     @default(now())
+  risks_risks_created_by_idTousers   risks[]      @relation("risks_created_by_idTousers")
+  risks_risks_risk_manager_idTousers risks[]      @relation("risks_risk_manager_idTousers")
+  risks_risks_risk_owner_idTousers   risks[]      @relation("risks_risk_owner_idTousers")
+  risks_risks_updated_by_idTousers   risks[]      @relation("risks_updated_by_idTousers")
+  user_roles                         user_roles[]
+  departments                        departments? @relation(fields: [department_id], references: [id])
+}
