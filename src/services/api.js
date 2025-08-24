@@ -4,9 +4,6 @@ const API_BASE_URL = 'http://localhost:3001/api';
 const apiCall = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
   
-  console.log(`🌐 API Call: ${options.method || 'GET'} ${url}`);
-  console.log('📤 Request options:', options);
-  
   const defaultOptions = {
     headers: {
       'Content-Type': 'application/json',
@@ -20,48 +17,29 @@ const apiCall = async (endpoint, options = {}) => {
   const token = localStorage.getItem('authToken');
   if (token) {
     defaultOptions.headers.Authorization = `Bearer ${token}`;
-    console.log('🔑 Auth token found and added to headers');
-  } else {
-    console.log('⚠️ No auth token found in localStorage');
   }
 
   try {
-    console.log('📡 Sending request to:', url);
-    console.log('📤 Final request options:', defaultOptions);
-    
     const response = await fetch(url, defaultOptions);
-    console.log('📥 Response status:', response.status);
-    console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
     
     // Check if response is JSON
     const contentType = response.headers.get('content-type');
-    console.log('📥 Content-Type:', contentType);
     
     if (!contentType || !contentType.includes('application/json')) {
-      console.error('❌ Response is not JSON. Content-Type:', contentType);
       const textResponse = await response.text();
-      console.error('❌ Response text:', textResponse.substring(0, 200));
       throw new Error(`Expected JSON response but got ${contentType}. Response: ${textResponse.substring(0, 100)}...`);
     }
     
     const data = await response.json();
-    console.log('📥 Response data:', data);
     
     if (!response.ok) {
       const errorMessage = data.error || `HTTP error! status: ${response.status}`;
-      console.error('❌ API Error:', errorMessage);
       throw new Error(errorMessage);
     }
     
-    console.log('✅ API call successful');
     return data;
   } catch (error) {
-    console.error('💥 API call failed:', error);
-    console.error('💥 Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
+    console.error('API call failed:', error);
     throw error;
   }
 };
@@ -69,27 +47,20 @@ const apiCall = async (endpoint, options = {}) => {
 // Authentication API
 export const authAPI = {
   login: async (email, password) => {
-    console.log('🔐 Login attempt for:', email);
-    
     try {
       const response = await apiCall('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
       
-      console.log('🔐 Login response:', response);
-      
       if (response.token) {
         localStorage.setItem('authToken', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
-        console.log('💾 Token and user data saved to localStorage');
-      } else {
-        console.warn('⚠️ No token received in login response');
       }
       
       return response;
     } catch (error) {
-      console.error('🔐 Login failed:', error);
+      console.error('Login failed:', error);
       throw error;
     }
   },
@@ -231,23 +202,16 @@ export const adminAPI = {
   },
 
   getUsers: async () => {
-    console.log('🔍 getUsers called');
     const response = await apiCall('/admin/users');
-    console.log('🔍 getUsers response:', response);
-    console.log('🔍 getUsers response type:', typeof response);
-    console.log('🔍 getUsers response length:', response?.length);
     return response;
   },
 
   getDashboardSections: async () => {
-    console.log('🔍 getDashboardSections called');
     const response = await apiCall('/admin/dashboard-sections');
-    console.log('🔍 getDashboardSections response:', response);
     return response;
   },
 
   approveUser: async (userId, roleId, allowedSections) => {
-    console.log('🔍 approveUser called:', { userId, roleId, allowedSections });
     const response = await apiCall('/admin/approve-user', {
       method: 'POST',
       body: JSON.stringify({ userId, roleId, allowedSections }),
@@ -256,26 +220,17 @@ export const adminAPI = {
   },
 
   getUserDashboardAccess: async () => {
-    console.log('🔍 getUserDashboardAccess called');
     const response = await apiCall('/user/dashboard-access');
     return response;
   },
 
   getDepartments: async () => {
-    console.log('🔍 getDepartments called');
     const response = await apiCall('/admin/departments');
-    console.log('🔍 getDepartments response:', response);
-    console.log('🔍 getDepartments response type:', typeof response);
-    console.log('🔍 getDepartments response length:', response?.length);
     return response;
   },
 
   getRoles: async () => {
-    console.log('🔍 getRoles called');
     const response = await apiCall('/admin/roles');
-    console.log('🔍 getRoles response:', response);
-    console.log('🔍 getRoles response type:', typeof response);
-    console.log('🔍 getRoles response length:', response?.length);
     return response;
   },
 };
@@ -303,6 +258,26 @@ export const referenceAPI = {
   },
 };
 
+// CEO API
+export const ceoAPI = {
+  getOverview: async () => {
+    const response = await apiCall('/ceo/overview');
+    return response;
+  },
+  getRiskManagement: async () => {
+    const response = await apiCall('/ceo/risk-management');
+    return response;
+  },
+  getReports: async () => {
+    const response = await apiCall('/ceo/reports');
+    return response;
+  },
+  getSystemHealth: async () => {
+    const response = await apiCall('/ceo/system-health');
+    return response;
+  }
+};
+
 // Individual exports for AdminDashboard
 export const createUser = adminAPI.createUser;
 export const deleteUser = adminAPI.deleteUser;
@@ -314,6 +289,12 @@ export const getRoles = adminAPI.getRoles;
 export const getDashboardSections = adminAPI.getDashboardSections;
 export const approveUser = adminAPI.approveUser;
 export const getUserDashboardAccess = adminAPI.getUserDashboardAccess;
+
+// Individual exports for CEO Dashboard
+export const getCEOOverview = ceoAPI.getOverview;
+export const getCEORiskManagement = ceoAPI.getRiskManagement;
+export const getCEOReports = ceoAPI.getReports;
+export const getCEOSystemHealth = ceoAPI.getSystemHealth;
 
 // Health check
 export const healthCheck = async () => {

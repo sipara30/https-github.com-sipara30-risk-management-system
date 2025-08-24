@@ -135,6 +135,53 @@ async function main() {
   });
   console.log('✅ Default department created');
 
+  // Create sample departments
+  const departments = [
+    { name: 'IT', code: 'IT', description: 'Information Technology Department' },
+    { name: 'Finance', code: 'FIN', description: 'Finance and Accounting Department' },
+    { name: 'Operations', code: 'OPS', description: 'Operations and Production Department' },
+    { name: 'Human Resources', code: 'HR', description: 'Human Resources Department' },
+    { name: 'Legal', code: 'LEGAL', description: 'Legal and Compliance Department' }
+  ];
+
+  for (const dept of departments) {
+    await prisma.departments.upsert({
+      where: { department_name: dept.name },
+      update: {},
+      create: {
+        department_name: dept.name,
+        department_code: dept.code,
+        description: dept.description
+    }
+  });
+  }
+  console.log('✅ Sample departments created');
+
+  // Create sample risk categories
+  const categories = [
+    { name: 'Technical', code: 'TECH', description: 'Technology and infrastructure risks' },
+    { name: 'Operational', code: 'OPS', description: 'Operational and process risks' },
+    { name: 'Financial', code: 'FIN', description: 'Financial and budgetary risks' },
+    { name: 'Strategic', code: 'STRAT', description: 'Strategic and business risks' },
+    { name: 'Compliance', code: 'COMP', description: 'Regulatory and compliance risks' },
+    { name: 'Security', code: 'SEC', description: 'Information security and privacy risks' },
+    { name: 'Environmental', code: 'ENV', description: 'Environmental and sustainability risks' },
+    { name: 'Reputational', code: 'REP', description: 'Reputation and brand risks' }
+  ];
+
+  for (const cat of categories) {
+    await prisma.risk_categories.upsert({
+      where: { category_name: cat.name },
+      update: {},
+      create: {
+        category_name: cat.name,
+        category_code: cat.code,
+        description: cat.description
+      }
+    });
+  }
+  console.log('✅ Sample risk categories created');
+
   console.log('🎉 Database seeding completed!');
 }
 

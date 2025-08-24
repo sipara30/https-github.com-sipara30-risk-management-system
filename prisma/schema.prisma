@@ -41,7 +41,7 @@ model risks {
   risk_owner_id                      Int?
   risk_manager_id                    Int?
   system_user_id                     Int?
-  status                             String           @default("Identified")
+  status                             String           @default("Submitted")
   priority                           String           @default("Medium")
   identified_date                    DateTime?
   last_review_date                   DateTime?
@@ -51,12 +51,28 @@ model risks {
   created_at                         DateTime         @default(now())
   updated_by_id                      Int?
   updated_at                         DateTime         @default(now())
+  
+  // New fields for user risk submissions
+  date_reported                      DateTime         @default(now())
+  attachments                        Json?            // Array of attachment URLs/paths
+  submitted_by                       Int              // User who submitted the risk
+  
+  // New fields for risk owner evaluation
+  assessment_notes                   String?
+  severity                           String?          // Low, Medium, High
+  category_update                    String?
+  status_update                      String?          // Open, In Review, Mitigated, Escalated
+  evaluated_by                       Int?             // Risk Owner who evaluated
+  date_evaluated                     DateTime?
+  
   users_risks_created_by_idTousers   users?           @relation("risks_created_by_idTousers", fields: [created_by_id], references: [id])
   departments                        departments?     @relation(fields: [department_id], references: [id])
   risk_categories                    risk_categories? @relation(fields: [risk_category_id], references: [id])
   users_risks_risk_manager_idTousers users?           @relation("risks_risk_manager_idTousers", fields: [risk_manager_id], references: [id])
   users_risks_risk_owner_idTousers   users?           @relation("risks_risk_owner_idTousers", fields: [risk_owner_id], references: [id])
   users_risks_updated_by_idTousers   users?           @relation("risks_updated_by_idTousers", fields: [updated_by_id], references: [id])
+  users_risks_submitted_byTousers    users?           @relation("risks_submitted_byTousers", fields: [submitted_by], references: [id])
+  users_risks_evaluated_byTousers    users?           @relation("risks_evaluated_byTousers", fields: [evaluated_by], references: [id])
 }
 
 model roles {
@@ -113,6 +129,8 @@ model users {
   risks_risks_risk_manager_idTousers risks[]      @relation("risks_risk_manager_idTousers")
   risks_risks_risk_owner_idTousers   risks[]      @relation("risks_risk_owner_idTousers")
   risks_risks_updated_by_idTousers   risks[]      @relation("risks_updated_by_idTousers")
+  risks_risks_submitted_byTousers    risks[]      @relation("risks_submitted_byTousers")
+  risks_risks_evaluated_byTousers    risks[]      @relation("risks_evaluated_byTousers")
   user_roles                         user_roles[]
   departments                        departments? @relation(fields: [department_id], references: [id])
 }

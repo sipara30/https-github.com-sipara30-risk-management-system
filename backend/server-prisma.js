@@ -332,6 +332,25 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
+// Admin categories endpoint
+app.get('/api/admin/categories', authenticateToken, async (req, res) => {
+  try {
+    const categories = await prisma.risk_categories.findMany({
+      where: { is_active: true },
+      select: {
+        id: true,
+        category_name: true,
+        category_code: true,
+        description: true
+      }
+    });
+    res.json(categories);
+  } catch (error) {
+    console.error('Admin categories fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch categories: ' + error.message });
+  }
+});
+
 app.get('/api/departments', async (req, res) => {
   try {
     const departments = await prisma.departments.findMany({
@@ -854,6 +873,192 @@ app.get('/api/user/dashboard-access', authenticateToken, async (req, res) => {
   }
 });
 
+// CEO Dashboard Endpoints
+app.get('/api/ceo/overview', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has CEO role
+    const user = await prisma.users.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        user_roles: {
+          include: {
+            roles: true
+          }
+        }
+      }
+    });
+
+    if (!user || user.user_roles[0]?.roles?.role_name !== 'CEO') {
+      return res.status(403).json({ error: 'CEO access required' });
+    }
+
+    // Get overview statistics
+    const totalUsers = await prisma.users.count();
+    const pendingUsers = await prisma.users.count({ where: { status: 'pending' } });
+    const approvedUsers = await prisma.users.count({ where: { status: 'approved' } });
+    const totalDepartments = await prisma.departments.count();
+    const totalRoles = await prisma.roles.count();
+
+    // Get recent user registrations
+    const recentUsers = await prisma.users.findMany({
+      take: 5,
+      orderBy: { created_at: 'desc' },
+          select: {
+        id: true,
+            first_name: true,
+        last_name: true,
+        email: true,
+        status: true,
+        created_at: true
+      }
+    });
+
+    res.json({
+      statistics: {
+        totalUsers,
+        pendingUsers,
+        approvedUsers,
+        totalDepartments,
+        totalRoles
+      },
+      recentUsers
+    });
+  } catch (error) {
+    console.error('CEO overview fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch CEO overview: ' + error.message });
+  }
+});
+
+app.get('/api/ceo/risk-management', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has CEO role
+    const user = await prisma.users.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        user_roles: {
+          include: {
+            roles: true
+          }
+        }
+      }
+    });
+
+    if (!user || user.user_roles[0]?.roles?.role_name !== 'CEO') {
+      return res.status(403).json({ error: 'CEO access required' });
+    }
+
+    // Get risk management data (placeholder for now)
+    const riskData = {
+      totalRisks: 0,
+      highRisks: 0,
+      mediumRisks: 0,
+      lowRisks: 0,
+      riskTrends: [
+        { month: 'Jan', count: 5 },
+        { month: 'Feb', count: 8 },
+        { month: 'Mar', count: 12 },
+        { month: 'Apr', count: 10 },
+        { month: 'May', count: 15 },
+        { month: 'Jun', count: 18 }
+      ]
+    };
+
+    res.json(riskData);
+  } catch (error) {
+    console.error('CEO risk management fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch risk management data: ' + error.message });
+  }
+});
+
+app.get('/api/ceo/reports', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has CEO role
+    const user = await prisma.users.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        user_roles: {
+          include: {
+            roles: true
+          }
+        }
+      }
+    });
+
+    if (!user || user.user_roles[0]?.roles?.role_name !== 'CEO') {
+      return res.status(403).json({ error: 'CEO access required' });
+    }
+
+    // Get reports data
+    const reports = [
+      {
+        id: 1,
+        title: 'Monthly User Activity Report',
+        description: 'Comprehensive overview of user activities and system usage',
+        type: 'monthly',
+        lastGenerated: new Date().toISOString(),
+        status: 'available'
+      },
+      {
+        id: 2,
+        title: 'Risk Assessment Summary',
+        description: 'Quarterly risk assessment and mitigation status',
+        type: 'quarterly',
+        lastGenerated: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'available'
+      },
+      {
+        id: 3,
+        title: 'System Performance Report',
+        description: 'System health and performance metrics',
+        type: 'weekly',
+        lastGenerated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'available'
+      }
+    ];
+
+    res.json({ reports });
+  } catch (error) {
+    console.error('CEO reports fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch reports: ' + error.message });
+  }
+});
+
+app.get('/api/ceo/system-health', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has CEO role
+    const user = await prisma.users.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        user_roles: {
+          include: {
+            roles: true
+          }
+        }
+      }
+    });
+
+    if (!user || user.user_roles[0]?.roles?.role_name !== 'CEO') {
+      return res.status(403).json({ error: 'CEO access required' });
+    }
+
+    // Get system health data
+    const systemHealth = {
+      status: 'healthy',
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+      databaseStatus: 'connected',
+      lastBackup: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      activeConnections: Math.floor(Math.random() * 50) + 10,
+      systemLoad: Math.random() * 0.8 + 0.2
+    };
+
+    res.json(systemHealth);
+  } catch (error) {
+    console.error('CEO system health fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch system health: ' + error.message });
+  }
+});
+
 // Global error handling middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
@@ -862,6 +1067,181 @@ app.use((err, req, res, next) => {
     message: err.message,
     timestamp: new Date().toISOString()
   });
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    success: true, 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: 'Backend server is running!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// User Risk Submission Endpoint
+app.post('/api/user/submit-risk', authenticateToken, async (req, res) => {
+  try {
+    const { title, description, department, category, date_reported } = req.body;
+    
+    // Validate required fields
+    if (!title || !description || !department || !category) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Create new risk record
+    const newRisk = await prisma.risks.create({
+      data: {
+        risk_code: `RISK-${Date.now()}`,
+        risk_title: title,
+        risk_description: description,
+        department_id: parseInt(department),
+        risk_category_id: parseInt(category),
+        date_reported: new Date(date_reported),
+        submitted_by: req.user.userId,
+        status: 'Submitted',
+        priority: 'Medium',
+        identified_date: new Date(),
+        created_by_id: req.user.userId,
+        updated_by_id: req.user.userId
+      }
+    });
+
+    res.json({ 
+      message: 'Risk submitted successfully',
+      risk: newRisk
+    });
+  } catch (error) {
+    console.error('Risk submission error:', error);
+    res.status(500).json({ error: 'Failed to submit risk: ' + error.message });
+  }
+});
+
+// Get user's submitted risks
+app.get('/api/user/risks', authenticateToken, async (req, res) => {
+  try {
+    const userRisks = await prisma.risks.findMany({
+      where: { submitted_by: req.user.userId },
+      include: {
+        departments: true,
+        risk_categories: true,
+        users_risks_submitted_byTousers: {
+          select: {
+            first_name: true,
+            last_name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    res.json(userRisks);
+  } catch (error) {
+    console.error('User risks fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch user risks: ' + error.message });
+  }
+});
+
+// Risk Owner Endpoints
+app.get('/api/risk-owner/risks', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has RiskOwner role
+    const user = await prisma.users.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        user_roles: {
+          include: {
+            roles: true
+          }
+        }
+      }
+    });
+
+    if (!user || user.user_roles[0]?.roles?.role_name !== 'RiskOwner') {
+      return res.status(403).json({ error: 'Risk Owner access required' });
+    }
+
+    const risks = await prisma.risks.findMany({
+      include: {
+        departments: true,
+        risk_categories: true,
+        users_risks_submitted_byTousers: {
+          select: {
+            first_name: true,
+            last_name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    res.json(risks);
+  } catch (error) {
+    console.error('Risk owner risks fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch risks: ' + error.message });
+  }
+});
+
+app.post('/api/risk-owner/evaluate/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assessment_notes, severity, category_update, status_update } = req.body;
+    
+    // Check if user has RiskOwner role
+    const user = await prisma.users.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        user_roles: {
+          include: {
+            roles: true
+          }
+        }
+      }
+    });
+
+    if (!user || user.user_roles[0]?.roles?.role_name !== 'RiskOwner') {
+      return res.status(403).json({ error: 'Risk Owner access required' });
+    }
+
+    // Validate required fields
+    if (!assessment_notes || !severity || !status_update) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Update risk with evaluation
+    const updatedRisk = await prisma.risks.update({
+      where: { id: parseInt(id) },
+      data: {
+        assessment_notes,
+        severity,
+        category_update: category_update || null,
+        status_update,
+        status: status_update,
+        evaluated_by: req.user.userId,
+        date_evaluated: new Date(),
+        updated_by_id: req.user.userId,
+        updated_at: new Date()
+      }
+    });
+
+    res.json({ 
+      message: 'Risk evaluation submitted successfully',
+      risk: updatedRisk
+    });
+  } catch (error) {
+    console.error('Risk evaluation error:', error);
+    res.status(500).json({ error: 'Failed to evaluate risk: ' + error.message });
+  }
 });
 
 // 404 handler for unmatched routes

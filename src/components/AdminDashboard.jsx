@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
+import { 
   ShieldCheckIcon,
   UsersIcon,
   ChartBarIcon,
@@ -12,10 +12,10 @@ import {
   CheckCircleIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
-import {
-  createUser,
-  deleteUser,
-  updateUser,
+import { 
+  createUser, 
+  deleteUser, 
+  updateUser, 
   updateUserRole,
   updateUserStatus,
   getDashboardSections,
@@ -59,6 +59,42 @@ const AdminDashboard = () => {
     departmentId: '',
     allowedSections: []
   });
+
+  // Predefined role configurations with automatic dashboard section assignment
+  const predefinedRoleConfigs = {
+    'CEO': {
+      sections: ['overview', 'risk_management', 'reports', 'system_health'],
+      description: 'Full access to all dashboard sections including executive overview and strategic reports'
+    },
+    'DCEO': {
+      sections: ['overview', 'risk_management', 'reports', 'system_health'],
+      description: 'Deputy CEO with full access to all dashboard sections'
+    },
+    'Department Manager': {
+      sections: ['overview', 'risk_management', 'reports'],
+      description: 'Department-level access to risk management and reporting'
+    },
+    'Risk Owner': {
+      sections: ['overview', 'risk_management', 'reports'],
+      description: 'Risk ownership responsibilities with access to risk management tools'
+    },
+    'Risk Manager': {
+      sections: ['overview', 'risk_management', 'reports'],
+      description: 'Risk management focus with access to risk assessment tools'
+    },
+    'User': {
+      sections: ['overview'],
+      description: 'Basic user access to overview and risk submission'
+    },
+    'System Administrator': {
+      sections: ['overview', 'risk_management', 'reports', 'system_health', 'user_management', 'system_settings'],
+      description: 'Full system access including user management and system settings'
+    },
+    'Admin': {
+      sections: ['overview', 'risk_management', 'reports', 'user_management'],
+      description: 'Administrative access to user management and risk oversight'
+    }
+  };
 
   // Check authentication on component mount
   useEffect(() => {
@@ -107,11 +143,35 @@ const AdminDashboard = () => {
   // Auto-refresh dashboard data every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      loadDashboardData();
+    loadDashboardData();
     }, 30000); // Refresh every 30 seconds
 
     return () => clearInterval(interval);
   }, []);
+
+  // Function to automatically set dashboard sections based on selected role
+  const handleRoleSelection = (roleId) => {
+    const selectedRole = roles.find(role => role.id == roleId);
+    if (selectedRole) {
+      const roleName = selectedRole.role_name;
+      const config = predefinedRoleConfigs[roleName];
+      
+      if (config) {
+        setRoleAssignmentForm(prev => ({
+          ...prev,
+          roleId: roleId,
+          allowedSections: config.sections
+        }));
+      } else {
+        // For custom roles, keep existing sections or set default
+        setRoleAssignmentForm(prev => ({
+          ...prev,
+          roleId: roleId,
+          allowedSections: prev.allowedSections
+        }));
+      }
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -177,7 +237,7 @@ const AdminDashboard = () => {
       } else if (err.message.includes('Database connection lost') || err.message.includes('503')) {
         setError('Database connection lost. Please refresh the page to try again.');
       } else {
-        setError('Failed to load dashboard data: ' + err.message);
+      setError('Failed to load dashboard data: ' + err.message);
       }
     } finally {
       setLoading(false);
@@ -477,7 +537,7 @@ const AdminDashboard = () => {
           <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
             <div className="flex justify-between items-start">
               <div className="flex-1">
-                <p className="text-red-800">{error}</p>
+            <p className="text-red-800">{error}</p>
                 {error.includes('Database connection lost') && (
                   <button
                     onClick={loadDashboardData}
@@ -547,10 +607,10 @@ const AdminDashboard = () => {
                         <dd className="text-lg font-medium text-yellow-600">{users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').length}</dd>
                       </dl>
                     </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
@@ -592,21 +652,21 @@ const AdminDashboard = () => {
                       {/* Show pending requests first */}
                       {users.filter(user => !user.status || user.status === 'pending' || user.status === 'pending_access').slice(0, 3).map((user) => (
                         <div key={user.id} className="flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                          <div className="flex-shrink-0 h-8 w-8">
+                        <div className="flex-shrink-0 h-8 w-8">
                             <div className="h-8 w-8 rounded-full bg-yellow-500 flex items-center justify-center">
                               <ClockIcon className="h-4 w-4 text-white" />
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-yellow-800">
-                              Pending access request: {user.first_name} {user.last_name}
-                            </p>
-                            <p className="text-sm text-yellow-600">{user.email}</p>
-                          </div>
-                          <div className="text-sm text-yellow-600">
-                            {new Date(user.created_at || Date.now()).toLocaleDateString()}
                           </div>
                         </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-yellow-800">
+                              Pending access request: {user.first_name} {user.last_name}
+                          </p>
+                            <p className="text-sm text-yellow-600">{user.email}</p>
+                        </div>
+                          <div className="text-sm text-yellow-600">
+                          {new Date(user.created_at || Date.now()).toLocaleDateString()}
+                        </div>
+                      </div>
                       ))}
                       
                       {/* Show recent approved users */}
@@ -667,8 +727,8 @@ const AdminDashboard = () => {
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
                           user.status === 'approved' ? 'bg-green-500' : 'bg-yellow-500'
                         }`}>
-                          {user.first_name?.[0]}{user.last_name?.[0]}
-                        </div>
+                              {user.first_name?.[0]}{user.last_name?.[0]}
+                          </div>
                         <div>
                           <div className="text-sm font-medium text-gray-900">
                             {user.first_name} {user.last_name}
@@ -691,29 +751,29 @@ const AdminDashboard = () => {
                       <div className="flex items-center space-x-2">
                         {user.status === 'pending' || !user.status ? (
                           <>
-                            <button
+                        <button
                               onClick={() => handleApproveUser(user)}
                               className="text-green-600 hover:text-green-900 p-1"
                               title="Approve"
-                            >
+                        >
                               <CheckCircleIcon className="h-5 w-5" />
-                            </button>
-                            <button
+                        </button>
+                        <button
                               onClick={() => handleRejectUser(user.id)}
                               className="text-red-600 hover:text-red-900 p-1"
                               title="Reject"
-                            >
+                        >
                               <XCircleIcon className="h-5 w-5" />
-                            </button>
+                        </button>
                           </>
                         ) : null}
-                        <button
+              <button
                           onClick={() => handleEditUser(user)}
                           className="text-blue-600 hover:text-blue-900 p-1"
                           title="Edit"
-                        >
+              >
                           <PencilIcon className="h-5 w-5" />
-                        </button>
+              </button>
                       </div>
                     </div>
                   </li>
@@ -972,7 +1032,10 @@ const AdminDashboard = () => {
                   <label className="block text-sm font-medium text-gray-700">Role</label>
                   <select
                     value={userForm.roleId}
-                    onChange={(e) => setUserForm({...userForm, roleId: e.target.value})}
+                    onChange={(e) => {
+                      setUserForm({...userForm, roleId: e.target.value});
+                      handleRoleSelection(e.target.value);
+                    }}
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
                     required
                   >
@@ -1041,7 +1104,7 @@ const AdminDashboard = () => {
                   <label className="block text-sm font-medium text-gray-700">Role</label>
                   <select
                     value={roleAssignmentForm.roleId}
-                    onChange={(e) => setRoleAssignmentForm({...roleAssignmentForm, roleId: e.target.value})}
+                    onChange={(e) => handleRoleSelection(e.target.value)}
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
                     required
                   >
@@ -1050,6 +1113,21 @@ const AdminDashboard = () => {
                       <option key={role.id} value={role.id}>{role.role_name}</option>
                     ))}
                   </select>
+                  
+                  {/* Show role configuration info */}
+                  {roleAssignmentForm.roleId && (() => {
+                    const selectedRole = roles.find(role => role.id == roleAssignmentForm.roleId);
+                    const config = selectedRole ? predefinedRoleConfigs[selectedRole.role_name] : null;
+                    return config ? (
+                      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <div className="text-sm font-medium text-blue-900">{selectedRole.role_name} Configuration</div>
+                        <div className="text-xs text-blue-700 mt-1">{config.description}</div>
+                        <div className="text-xs text-blue-600 mt-2">
+                          <strong>Auto-assigned sections:</strong> {config.sections.join(', ')}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 
                 <div>
@@ -1080,6 +1158,9 @@ const AdminDashboard = () => {
                       </label>
                     ))}
                   </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Sections are automatically configured based on the selected role. You can manually adjust if needed.
+                  </p>
                 </div>
                 
                 <div className="flex justify-end space-x-3 pt-4">

@@ -6,6 +6,8 @@ import RegisterPage from './components/RegisterPage';
 import AddRiskPage from './components/AddRiskPage';
 import AdminDashboard from './components/AdminDashboard';
 import RoleBasedDashboard from './components/RoleBasedDashboard';
+import UserDashboard from './components/UserDashboard';
+import RiskOwnerDashboard from './components/RiskOwnerDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -44,6 +46,26 @@ function App() {
             element={
               <ProtectedRoute>
                 <RoleBasedDashboard />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* User Dashboard - For regular users to submit risks */}
+          <Route 
+            path="/user-dashboard" 
+            element={
+              <ProtectedRoute>
+                <UserDashboard />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Risk Owner Dashboard - For risk owners to evaluate risks */}
+          <Route 
+            path="/risk-owner-dashboard" 
+            element={
+              <ProtectedRoute>
+                <RiskOwnerDashboard />
               </ProtectedRoute>
             } 
           />

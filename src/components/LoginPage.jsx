@@ -82,18 +82,174 @@ const LoginPage = () => {
       const response = await authAPI.login(formData.email, formData.password);
       console.log('✅ Login successful:', response);
       
-      // Redirect based on user role and permissions
+      // Get user data from response
       const user = response.user;
-      const roles = user.roles || [];
-      const permissions = user.permissions || {};
       
-      // Check if user has admin privileges
-      if (roles.includes('SystemAdmin') || roles.includes('Admin')) {
-        navigate('/admin');
-      } else {
-        // All other approved users go to the role-based dashboard
-        navigate('/dashboard');
+      // Validate user data structure
+      if (!user) {
+        throw new Error('No user data received from server');
       }
+      
+      console.log('💾 User data validation:');
+      console.log('💾 User object exists:', !!user);
+      console.log('💾 User ID:', user.id);
+      console.log('💾 User email:', user.email);
+      console.log('💾 User roles array:', user.roles);
+      console.log('💾 User role string:', user.role);
+      console.log('💾 User role_name string:', user.role_name);
+      
+      // Note: User data is already stored by authAPI.login()
+      console.log('💾 User data from response:');
+      console.log('💾 authToken:', response.token);
+      console.log('💾 user:', JSON.stringify(user));
+      
+      // Redirect based on user role and permissions
+      const roles = user.roles || [];
+      const userRole = user.role || user.role_name || '';
+      
+      console.log('👤 User roles:', roles);
+      console.log('👤 User role:', userRole);
+      console.log('👤 Full user object:', user);
+      console.log('👤 User role type:', typeof userRole);
+      console.log('👤 User role length:', userRole ? userRole.length : 0);
+      
+      // Additional role checks
+      if (userRole) {
+        console.log('👤 User role includes "risk":', userRole.toLowerCase().includes('risk'));
+        console.log('👤 User role includes "owner":', userRole.toLowerCase().includes('owner'));
+      }
+      
+      // Normalize the user role for better matching
+      const normalizedRole = userRole ? userRole.toString().toLowerCase().trim().replace(/\s+/g, ' ') : '';
+      console.log('👤 Normalized role:', normalizedRole);
+      
+      // Enhanced role detection with priority order
+      console.log('🔍 Role detection analysis:');
+      console.log('🔍 User roles array:', roles);
+      console.log('🔍 User role string:', userRole);
+      console.log('🔍 Normalized role:', normalizedRole);
+      
+      // Check if user has admin privileges (case-insensitive)
+      const hasAdminRole = roles.some(role => 
+        role.toLowerCase().includes('admin') || 
+        role.toLowerCase().includes('system')
+      ) || normalizedRole.includes('admin') || 
+         normalizedRole.includes('system');
+      
+      // Check if user is a risk owner (highest priority after admin)
+      const isRiskOwner = roles.some(role => {
+        const normalizedRole = role.toLowerCase();
+        const hasRiskOwnerRole = normalizedRole.includes('risk') || 
+               normalizedRole.includes('owner') ||
+               normalizedRole.includes('riskowner') ||
+               normalizedRole.includes('risk_owner') ||
+               normalizedRole.includes('risk owner');
+        
+        if (hasRiskOwnerRole) {
+          console.log('🔍 Found risk owner role in roles array:', role);
+        }
+        
+        return hasRiskOwnerRole;
+      }) || normalizedRole.includes('risk') || 
+         normalizedRole.includes('owner') ||
+         normalizedRole.includes('riskowner') ||
+         normalizedRole.includes('risk_owner') ||
+         normalizedRole.includes('risk owner');
+      
+      // Check if user also has a "user" role (this might be causing confusion)
+      const hasUserRole = roles.some(role => 
+        role.toLowerCase().includes('user')
+      ) || normalizedRole.includes('user');
+      
+      if (hasUserRole) {
+        console.log('🔍 User also has "user" role - this might cause confusion');
+      }
+      
+      console.log('🔍 Detailed risk owner check:');
+      console.log('🔍 Roles array check:', roles.map(role => ({
+        role: role,
+        normalized: role.toLowerCase(),
+        includesRisk: role.toLowerCase().includes('risk'),
+        includesOwner: role.toLowerCase().includes('owner'),
+        includesRiskOwner: role.toLowerCase().includes('riskowner'),
+        includesRisk_Owner: role.toLowerCase().includes('risk_owner'),
+        includesRiskOwner: role.toLowerCase().includes('risk owner')
+      })));
+      console.log('🔍 Normalized role check:', {
+        normalizedRole: normalizedRole,
+        includesRisk: normalizedRole.includes('risk'),
+        includesOwner: normalizedRole.includes('owner'),
+        includesRiskOwner: normalizedRole.includes('riskowner'),
+        includesRisk_Owner: normalizedRole.includes('risk_owner'),
+        includesRiskOwner: normalizedRole.includes('risk owner')
+      });
+      
+      // Check other roles
+      const isCEO = normalizedRole.includes('ceo') || normalizedRole.includes('dceo');
+      const isAuditor = normalizedRole.includes('auditor');
+      const isManager = normalizedRole.includes('manager') || normalizedRole.includes('supervisor');
+      
+      console.log('🔍 Role analysis results:');
+      console.log('🔍 Has admin role:', hasAdminRole);
+      console.log('🔍 Is risk owner:', isRiskOwner);
+      console.log('🔍 Is CEO:', isCEO);
+      console.log('🔍 Is auditor:', isAuditor);
+      console.log('🔍 Is manager:', isManager);
+      
+      let targetRoute = '';
+      
+      if (hasAdminRole) {
+        targetRoute = '/admin';
+        console.log('🚀 Redirecting to Admin Dashboard');
+        console.log('📍 Navigation target:', targetRoute);
+      } else if (isRiskOwner) {
+        // Risk Owners go to the risk owner dashboard (priority over other roles)
+        targetRoute = '/risk-owner-dashboard';
+        console.log('🛡️ Redirecting to Risk Owner Dashboard');
+        console.log('📍 Navigation target:', targetRoute);
+      } else if (isCEO || isAuditor) {
+        // CEO, DCEO, and Auditors go to the role-based dashboard
+        targetRoute = '/dashboard';
+        console.log('👑 Redirecting to Role-Based Dashboard');
+        console.log('📍 Navigation target:', targetRoute);
+      } else if (isManager) {
+        // Managers and supervisors go to role-based dashboard
+        targetRoute = '/dashboard';
+        console.log('👔 Redirecting to Role-Based Dashboard (Manager)');
+        console.log('📍 Navigation target:', targetRoute);
+      } else {
+        // Regular users go to the user dashboard
+        targetRoute = '/user-dashboard';
+        console.log('👤 Redirecting to User Dashboard');
+        console.log('📍 Navigation target:', targetRoute);
+      }
+      
+      console.log('🎯 About to navigate to:', targetRoute);
+      console.log('🎯 Current location before navigation:', window.location.href);
+      
+      // Perform the navigation with a small delay to ensure proper routing
+      setTimeout(() => {
+        console.log('🎯 Executing navigation to:', targetRoute);
+        navigate(targetRoute);
+        console.log('🎯 Navigation command executed');
+        
+        // Verify navigation happened
+        setTimeout(() => {
+          console.log('🎯 Navigation verification - Current URL:', window.location.href);
+          console.log('🎯 Expected route:', targetRoute);
+          console.log('🎯 Navigation successful:', window.location.pathname === targetRoute);
+        }, 200);
+      }, 100);
+      
+      // Log the final navigation decision
+      console.log('🎯 Final navigation decision made');
+      console.log('🎯 User role detected:', normalizedRole);
+      console.log('🎯 Dashboard route selected:', 
+        hasAdminRole ? '/admin' :
+        isRiskOwner ? '/risk-owner-dashboard' :
+        (isCEO || isAuditor) ? '/dashboard' :
+        isManager ? '/dashboard' : '/user-dashboard'
+      );
     } catch (error) {
       console.error('❌ Login error:', error);
       setError(`Login failed: ${error.message}`);

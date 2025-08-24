@@ -10,15 +10,148 @@ const Reports = () => {
     setRisks(savedRisks || []);
   }, []);
 
+  // Risk matrix definitions from manual (copied from RiskForm)
+  const likelihoodOptions = [
+    { value: 0.05, label: '0.05 - Very Low', description: 'Historically, the event has occurred very infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were the event to occur over the course of the project, the event would be considered exceptional.' },
+    { value: 0.1, label: '0.1 - Low', description: 'Historically, the event has been known to occur infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered remarkable.' },
+    { value: 0.2, label: '0.2 - Moderate', description: 'Historically, the event has been known to occur, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, it is plausible for this event to occur over the course of this project.' },
+    { value: 0.4, label: '0.4 - High', description: 'Historically, the event has been known to occur frequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered unremarkable.' },
+    { value: 0.8, label: '0.8 - Very High', description: 'Historically, the event has been known to occur very frequently, based on comparisons with similar projects conducted under similar conditions. Based on current project circumstances, the event is expected to occur over the course of this project.' }
+  ];
+
+  const impactOptions = [
+    { value: 0.05, label: '0.05 - Very Low' },
+    { value: 0.1, label: '0.1 - Low' },
+    { value: 0.2, label: '0.2 - Moderate' },
+    { value: 0.4, label: '0.4 - High' },
+    { value: 0.8, label: '0.8 - Very High' }
+  ];
+
+  // Impact category definitions from manual
+  const impactCategories = {
+    Financial: {
+      name: 'Financial Impact',
+      options: impactOptions,
+      description: 'Assessment of financial consequences including costs, revenue impacts, and budget overruns.',
+      fieldName: 'financialImpact',
+      scoreFieldName: 'financialRiskScore'
+    },
+    Reputation: {
+      name: 'Reputation Impact',
+      options: [
+        { value: 0.1, label: '0.1 - Very Low', description: 'Incident or issue causes local inconvenience. Negative comment about the operations at regional level.' },
+        { value: 0.3, label: '0.3 - Low', description: 'Incident or issue causes local concern with no potential for escalation. Short term negative regional media attention.' },
+        { value: 0.5, label: '0.5 - Moderate', description: 'Incident or issue causes local concern with potential for escalation to state media. State or Federal regulator conducts formal inquiry.' },
+        { value: 0.7, label: '0.7 - High', description: 'Incident or issue causes negative state wide media attention and regulatory intervention. Government inquiry into project actions.' },
+        { value: 0.9, label: '0.9 - Very High', description: 'Incident or issue causes prolonged, negative national media coverage. Court, regulator or Government inquiry alleges improper conduct.' }
+      ],
+      fieldName: 'reputationImpact',
+      scoreFieldName: 'reputationRiskScore'
+    },
+    'Legal/Regulatory': {
+      name: 'Legal/Regulatory/Compliance Impact',
+      options: [
+        { value: 0.1, label: '0.1 - Very Low', description: 'Not Applicable' },
+        { value: 0.3, label: '0.3 - Low', description: 'Breach of legislative provision resulting in potential monetary penalty. Breach of contractual obligation resulting in potential criticism.' },
+        { value: 0.5, label: '0.5 - Moderate', description: 'Breach of legislative provision resulting in potential monetary penalty. Breach of contractual obligation resulting in potential criticism.' },
+        { value: 0.7, label: '0.7 - High', description: 'Breach of legislative provision resulting in potential penalty exceeding ETB 500,000.00 or potential suspension to work.' },
+        { value: 0.9, label: '0.9 - Very High', description: 'Breach of legislative provision resulting in potential incarceration, penalty exceeding ETB 1,000,000.00 or suspension to work.' }
+      ],
+      fieldName: 'legalImpact',
+      scoreFieldName: 'legalRiskScore'
+    },
+    Environmental: {
+      name: 'Environmental Impact',
+      options: [
+        { value: 0.1, label: '0.1 - Very Low', description: 'Promptly reversible/trivial impact on air, water, soil, flora, fauna, habitat or heritage.' },
+        { value: 0.3, label: '0.3 - Low', description: 'Short term (<1-year) impact on population of native flora or fauna. Short term impacts on soil, air, water quality or habitat.' },
+        { value: 0.5, label: '0.5 - Moderate', description: 'Medium term (1-3 year) impact on population of native flora or fauna. Medium term impacts on soil, air, water quality or habitat.' },
+        { value: 0.7, label: '0.7 - High', description: 'Long term (3-5 years) impact on population of significant flora or fauna. Long term impacts on soil, air, water quality.' },
+        { value: 0.9, label: '0.9 - Very High', description: 'Permanent impact on the populations of the significant. Permanent unconfined impact on previously undisturbed ecosystem.' }
+      ],
+      fieldName: 'environmentalImpact',
+      scoreFieldName: 'environmentalRiskScore'
+    },
+    'Time/Schedule': {
+      name: 'Time/Schedule Impact',
+      options: [
+        { value: 0.1, label: '0.1 - Very Low', description: 'Minimal or no impact on project timelines, such as minor delays or schedule adjustments.' },
+        { value: 0.3, label: '0.3 - Low', description: 'Limited impact on project timelines, including minor delays or schedule changes.' },
+        { value: 0.5, label: '0.5 - Moderate', description: 'Significant impact on project timelines, potentially affecting project completion dates or milestones.' },
+        { value: 0.7, label: '0.7 - High', description: 'Severe delays or disruptions to project timelines, leading to missed deadlines, contract penalties, or project cancellation.' },
+        { value: 0.9, label: '0.9 - Very High', description: 'Catastrophic delays or disruptions to project timelines, leading to complete project failure, severe financial losses, or legal liabilities.' }
+      ],
+      fieldName: 'timeImpact',
+      scoreFieldName: 'timeRiskScore'
+    },
+    Other: {
+      name: 'Other Impact',
+      options: impactOptions,
+      description: 'Custom impact assessment for risks that don\'t fit standard categories.',
+      fieldName: 'otherImpact',
+      scoreFieldName: 'otherRiskScore',
+      hasCustomFields: true
+    }
+  };
+
+  // Calculate risk score and level based on manual matrix
+  const calculateRiskScore = (likelihood, impact) => {
+    const score = likelihood * impact;
+    let level = '';
+    if (score >= 0.01 && score <= 0.05) level = 'Low';
+    else if (score >= 0.06 && score <= 0.15) level = 'Medium';
+    else if (score >= 0.16 && score <= 0.35) level = 'High';
+    else if (score >= 0.36 && score <= 0.72) level = 'Critical';
+    return { score: score.toFixed(2), level };
+  };
+
+  // Calculate risk score for selected category
+  const calculateSelectedCategoryRiskScore = (data) => {
+    if (!data.category || !data.likelihood) return { score: '', level: '' };
+    
+    const category = impactCategories[data.category];
+    if (!category) return { score: '', level: '' };
+    
+    const impactValue = data[category.fieldName];
+    if (!impactValue) return { score: '', level: '' };
+    
+    return calculateRiskScore(parseFloat(data.likelihood), parseFloat(impactValue));
+  };
+
   // Calculate comprehensive statistics
   const calculateStats = () => {
     const totalRisks = risks.length;
     const openRisks = risks.filter(risk => risk.status === 'open').length;
     const resolvedRisks = risks.filter(risk => risk.status === 'resolved').length;
-    const criticalRisks = risks.filter(risk => risk.riskLevel === 'Critical').length;
-    const highRisks = risks.filter(risk => risk.riskLevel === 'High').length;
-    const mediumRisks = risks.filter(risk => risk.riskLevel === 'Medium').length;
-    const lowRisks = risks.filter(risk => risk.riskLevel === 'Low').length;
+    
+    // Use calculated risk levels if available, otherwise fall back to existing logic
+    const criticalRisks = risks.filter(risk => {
+      if (risk.calculated_risk_level) {
+        return risk.calculated_risk_level === 'Critical';
+      }
+      return risk.riskLevel === 'Critical';
+    }).length;
+    
+    const highRisks = risks.filter(risk => {
+      if (risk.calculated_risk_level) {
+        return risk.calculated_risk_level === 'High';
+      }
+      return risk.riskLevel === 'High';
+    }).length;
+    
+    const mediumRisks = risks.filter(risk => {
+      if (risk.calculated_risk_level) {
+        return risk.calculated_risk_level === 'Medium';
+      }
+      return risk.riskLevel === 'Medium';
+    }).length;
+    
+    const lowRisks = risks.filter(risk => {
+      if (risk.calculated_risk_level) {
+        return risk.calculated_risk_level === 'Low';
+      }
+      return risk.riskLevel === 'Low';
+    }).length;
 
     // Category breakdown
     const categoryBreakdown = risks.reduce((acc, risk) => {
@@ -26,8 +159,14 @@ const Reports = () => {
       return acc;
     }, {});
 
-    // Risk score distribution
-    const riskScores = risks.map(risk => parseFloat(risk.highestRiskScore) || 0);
+    // Risk score distribution - use calculated scores if available
+    const riskScores = risks.map(risk => {
+      if (risk.calculated_risk_score) {
+        return parseFloat(risk.calculated_risk_score);
+      }
+      return parseFloat(risk.highestRiskScore) || 0;
+    });
+    
     const avgRiskScore = riskScores.length > 0 ? (riskScores.reduce((a, b) => a + b, 0) / riskScores.length).toFixed(2) : 0;
     const maxRiskScore = Math.max(...riskScores, 0);
     const minRiskScore = Math.min(...riskScores, 0);
@@ -52,10 +191,30 @@ const Reports = () => {
   // Risk Matrix visualization
   const renderRiskMatrix = () => {
     const matrixData = {
-      'Critical': risks.filter(r => r.riskLevel === 'Critical'),
-      'High': risks.filter(r => r.riskLevel === 'High'),
-      'Medium': risks.filter(r => r.riskLevel === 'Medium'),
-      'Low': risks.filter(r => r.riskLevel === 'Low')
+      'Critical': risks.filter(r => {
+        if (r.calculated_risk_level) {
+          return r.calculated_risk_level === 'Critical';
+        }
+        return r.riskLevel === 'Critical';
+      }),
+      'High': risks.filter(r => {
+        if (r.calculated_risk_level) {
+          return r.calculated_risk_level === 'High';
+        }
+        return r.riskLevel === 'High';
+      }),
+      'Medium': risks.filter(r => {
+        if (r.calculated_risk_level) {
+          return r.calculated_risk_level === 'Medium';
+        }
+        return r.riskLevel === 'Medium';
+      }),
+      'Low': risks.filter(r => {
+        if (r.calculated_risk_level) {
+          return r.calculated_risk_level === 'Low';
+        }
+        return r.riskLevel === 'Low';
+      })
     };
 
     return (
@@ -97,7 +256,12 @@ const Reports = () => {
           {Object.entries(stats.categoryBreakdown).map(([category, count]) => {
             const categoryRisks = risks.filter(r => r.category === category);
             const avgScore = categoryRisks.length > 0 
-              ? (categoryRisks.reduce((sum, r) => sum + (parseFloat(r.highestRiskScore) || 0), 0) / categoryRisks.length).toFixed(2)
+              ? (categoryRisks.reduce((sum, r) => {
+                  if (r.calculated_risk_score) {
+                    return sum + parseFloat(r.calculated_risk_score);
+                  }
+                  return sum + (parseFloat(r.highestRiskScore) || 0);
+                }, 0) / categoryRisks.length).toFixed(2)
               : '0.00';
             
             return (
@@ -109,7 +273,10 @@ const Reports = () => {
                 <div className="text-right">
                   <div className="font-semibold text-primary">Avg Score: {avgScore}</div>
                   <div className="text-xs text-gray-500">
-                    {categoryRisks.filter(r => r.riskLevel === 'Critical' || r.riskLevel === 'High').length} high/critical
+                    {categoryRisks.filter(r => {
+                      const riskLevel = r.calculated_risk_level || r.riskLevel;
+                      return riskLevel === 'Critical' || riskLevel === 'High';
+                    }).length} high/critical
                   </div>
                 </div>
               </div>
@@ -122,9 +289,26 @@ const Reports = () => {
 
   // Management Reporting Requirements
   const renderManagementReporting = () => {
-    const criticalRisks = risks.filter(r => r.riskLevel === 'Critical');
-    const highRisks = risks.filter(r => r.riskLevel === 'High');
-    const mediumRisks = risks.filter(r => r.riskLevel === 'Medium');
+    const criticalRisks = risks.filter(r => {
+      if (r.calculated_risk_level) {
+        return r.calculated_risk_level === 'Critical';
+      }
+      return r.riskLevel === 'Critical';
+    });
+    
+    const highRisks = risks.filter(r => {
+      if (r.calculated_risk_level) {
+        return r.calculated_risk_level === 'High';
+      }
+      return r.riskLevel === 'High';
+    });
+    
+    const mediumRisks = risks.filter(r => {
+      if (r.calculated_risk_level) {
+        return r.calculated_risk_level === 'Medium';
+      }
+      return r.riskLevel === 'Medium';
+    });
 
     return (
       <div className="bg-white p-6 rounded-lg shadow">
@@ -139,7 +323,9 @@ const Reports = () => {
                 {criticalRisks.slice(0, 3).map(risk => (
                   <div key={risk.id} className="text-sm bg-red-50 p-2 rounded">
                     <div className="font-medium">{risk.title}</div>
-                    <div className="text-xs text-gray-600">Score: {risk.highestRiskScore} | Owner: {risk.owner || 'Unassigned'}</div>
+                    <div className="text-xs text-gray-600">
+                      Score: {risk.calculated_risk_score || risk.highestRiskScore} | Owner: {risk.owner || 'Unassigned'}
+                    </div>
                   </div>
                 ))}
                 {criticalRisks.length > 3 && (
@@ -158,7 +344,9 @@ const Reports = () => {
                 {highRisks.slice(0, 3).map(risk => (
                   <div key={risk.id} className="text-sm bg-orange-50 p-2 rounded">
                     <div className="font-medium">{risk.title}</div>
-                    <div className="text-xs text-gray-600">Score: {risk.highestRiskScore} | Owner: {risk.owner || 'Unassigned'}</div>
+                    <div className="text-xs text-gray-600">
+                      Score: {risk.calculated_risk_score || risk.highestRiskScore} | Owner: {risk.owner || 'Unassigned'}
+                    </div>
                   </div>
                 ))}
                 {highRisks.length > 3 && (
@@ -182,19 +370,19 @@ const Reports = () => {
   const renderRiskScoreDistribution = () => {
     const scoreRanges = {
       '0.01-0.05': risks.filter(r => {
-        const score = parseFloat(r.highestRiskScore) || 0;
+        const score = r.calculated_risk_score ? parseFloat(r.calculated_risk_score) : parseFloat(r.highestRiskScore) || 0;
         return score >= 0.01 && score <= 0.05;
       }).length,
       '0.06-0.15': risks.filter(r => {
-        const score = parseFloat(r.highestRiskScore) || 0;
+        const score = r.calculated_risk_score ? parseFloat(r.calculated_risk_score) : parseFloat(r.highestRiskScore) || 0;
         return score >= 0.06 && score <= 0.15;
       }).length,
       '0.16-0.35': risks.filter(r => {
-        const score = parseFloat(r.highestRiskScore) || 0;
+        const score = r.calculated_risk_score ? parseFloat(r.calculated_risk_score) : parseFloat(r.highestRiskScore) || 0;
         return score >= 0.16 && score <= 0.35;
       }).length,
       '0.36-0.72': risks.filter(r => {
-        const score = parseFloat(r.highestRiskScore) || 0;
+        const score = r.calculated_risk_score ? parseFloat(r.calculated_risk_score) : parseFloat(r.highestRiskScore) || 0;
         return score >= 0.36 && score <= 0.72;
       }).length
     };
@@ -259,15 +447,20 @@ const Reports = () => {
                     <div className="text-sm text-gray-500">{risk.description.substring(0, 50)}...</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{risk.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{risk.highestRiskScore}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {risk.calculated_risk_score || risk.highestRiskScore}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      risk.riskLevel === 'Critical' ? 'bg-red-100 text-red-800' :
-                      risk.riskLevel === 'High' ? 'bg-orange-100 text-orange-800' :
-                      risk.riskLevel === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
+                      (() => {
+                        const riskLevel = risk.calculated_risk_level || risk.riskLevel;
+                        if (riskLevel === 'Critical') return 'bg-red-100 text-red-800';
+                        if (riskLevel === 'High') return 'bg-orange-100 text-orange-800';
+                        if (riskLevel === 'Medium') return 'bg-yellow-100 text-yellow-800';
+                        return 'bg-green-100 text-green-800';
+                      })()
                     }`}>
-                      {risk.riskLevel}
+                      {risk.calculated_risk_level || risk.riskLevel}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{risk.status}</td>
