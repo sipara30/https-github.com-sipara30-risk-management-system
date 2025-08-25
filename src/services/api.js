@@ -290,6 +290,10 @@ export const getDashboardSections = adminAPI.getDashboardSections;
 export const approveUser = adminAPI.approveUser;
 export const getUserDashboardAccess = adminAPI.getUserDashboardAccess;
 
+// Add risks helpers for admin usage
+export const getRisks = risksAPI.getAll;
+export const updateRisk = risksAPI.update;
+
 // Individual exports for CEO Dashboard
 export const getCEOOverview = ceoAPI.getOverview;
 export const getCEORiskManagement = ceoAPI.getRiskManagement;

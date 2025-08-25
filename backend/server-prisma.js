@@ -400,6 +400,18 @@ app.get('/api/risks', async (req, res) => {
       include: {
         risk_categories: true,
         departments: true,
+        users_risks_submitted_byTousers: {
+          select: {
+            first_name: true,
+            last_name: true
+          }
+        },
+        users_risks_evaluated_byTousers: {
+          select: {
+            first_name: true,
+            last_name: true
+          }
+        },
         users_risks_risk_owner_idTousers: {
           select: {
             first_name: true,
@@ -421,9 +433,9 @@ app.get('/api/risks', async (req, res) => {
     // Transform data to match frontend expectations
     const transformedRisks = risks.map(risk => ({
       id: risk.id,
-      code: risk.risk_code,
-      title: risk.risk_title,
-      description: risk.risk_description,
+      risk_code: risk.risk_code,
+      risk_title: risk.risk_title,
+      risk_description: risk.risk_description,
       whatCanHappen: risk.what_can_happen,
       category: risk.risk_categories?.category_name || 'Not Assigned',
       department: risk.departments?.department_name || 'Not Assigned',
@@ -435,8 +447,19 @@ app.get('/api/risks', async (req, res) => {
       lastReviewDate: risk.last_review_date,
       nextReviewDate: risk.next_review_date,
       documentationStatus: risk.documentation_status,
-      createdAt: risk.created_at,
-      updatedAt: risk.updated_at
+      created_at: risk.created_at,
+      updated_at: risk.updated_at,
+      // Add the fields needed for CEO dashboard - keep original structure
+      date_reported: risk.date_reported || risk.created_at,
+      users_risks_submitted_byTousers: risk.users_risks_submitted_byTousers,
+      users_risks_evaluated_byTousers: risk.users_risks_evaluated_byTousers,
+      risk_categories: risk.risk_categories,
+      departments: risk.departments,
+      // Also add the transformed fields for compatibility
+      submitted_by_name: risk.users_risks_submitted_byTousers ? 
+        `${risk.users_risks_submitted_byTousers.first_name} ${risk.users_risks_submitted_byTousers.last_name}` : 'Unknown',
+      evaluated_by_name: risk.users_risks_evaluated_byTousers ? 
+        `${risk.users_risks_evaluated_byTousers.first_name} ${risk.users_risks_evaluated_byTousers.last_name}` : 'Not Evaluated'
     }));
 
     res.json(transformedRisks);
@@ -509,62 +532,79 @@ app.get('/api/risks/:id', async (req, res) => {
 
 app.post('/api/risks', async (req, res) => {
   try {
+    console.log('🔍 Backend received risk data:', req.body);
+    
     const {
-      code,
-      title,
-      description,
-      whatCanHappen,
-      categoryId,
-      departmentId,
-      ownerId,
-      managerId,
-      status,
+      title: riskTitle,
+      description: riskDescription,
+      category: riskCategory,
+      department,
+      likelihood,
+      impact,
+      urgencyLevel,
       priority,
-      identifiedDate,
-      nextReviewDate,
-      documentationStatus
+      proposedMitigationActions,
+      estimatedCost,
+      estimatedTimeline,
+      attachments,
+      additionalNotes,
+      date_reported,
+      submitted_by,
+      status,
+      workflow_step,
+      workflow_status
     } = req.body;
 
-    // Validation
-    if (!code || !title || !description) {
-      return res.status(400).json({ error: 'Code, title, and description are required' });
-    }
-
-    // Check if code already exists
-    const existingRisk = await prisma.risks.findUnique({
-      where: { risk_code: code }
+    console.log('🔍 Extracted fields:', {
+      riskTitle,
+      riskDescription,
+      riskCategory,
+      department
     });
 
-    if (existingRisk) {
-      return res.status(400).json({ error: 'Risk code already exists' });
+    // Validation
+    if (!riskTitle || !riskDescription || !riskCategory) {
+      console.log('❌ Validation failed - missing fields:', {
+        riskTitle: !!riskTitle,
+        riskDescription: !!riskDescription,
+        riskCategory: !!riskCategory
+      });
+      return res.status(400).json({ error: 'Risk title, description, and category are required' });
     }
+
+    // Generate unique risk code
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    const riskCode = `RISK-${timestamp}-${random}`;
 
     const risk = await prisma.risks.create({
       data: {
-        risk_code: code,
-        risk_title: title,
-        risk_description: description,
-        what_can_happen: whatCanHappen,
-        risk_category_id: categoryId || null,
-        department_id: departmentId || null,
-        risk_owner_id: ownerId || null,
-        risk_manager_id: managerId || null,
-        status: status || 'Identified',
+        risk_code: riskCode,
+        risk_title: riskTitle,
+        risk_description: riskDescription,
+        risk_category_id: riskCategory ? parseInt(riskCategory) : null,
+        department_id: department ? parseInt(department) : null,
+        status: status || 'Submitted',
         priority: priority || 'Medium',
-        identified_date: identifiedDate ? new Date(identifiedDate) : null,
-        next_review_date: nextReviewDate ? new Date(nextReviewDate) : null,
-        documentation_status: documentationStatus || 'Draft'
+        date_reported: date_reported ? new Date(date_reported) : new Date(),
+        submitted_by: submitted_by,
+        workflow_step: workflow_step || 1,
+        workflow_status: workflow_status || {
+          step1_completed: true,
+          step2_completed: false,
+          step3_completed: false,
+          step4_completed: false,
+          step5_completed: false,
+          step6_completed: false,
+          last_updated: new Date().toISOString()
+        },
+        attachments: attachments || [],
+        assessment_notes: additionalNotes
       },
       include: {
         risk_categories: true,
         departments: true,
-        users_risks_risk_owner_idTousers: {
-          select: {
-            first_name: true,
-            last_name: true
-          }
-        },
-        users_risks_risk_manager_idTousers: {
+        users_risks_submitted_byTousers: {
           select: {
             first_name: true,
             last_name: true
@@ -576,20 +616,17 @@ app.post('/api/risks', async (req, res) => {
     // Transform response
     const transformedRisk = {
       id: risk.id,
-      code: risk.risk_code,
-      title: risk.risk_title,
-      description: risk.risk_description,
-      whatCanHappen: risk.what_can_happen,
-      category: risk.risk_categories?.category_name || 'Not Assigned',
-      department: risk.departments?.department_name || 'Not Assigned',
-      owner: risk.users_risks_risk_owner_idTousers ? `${risk.users_risks_risk_owner_idTousers.first_name} ${risk.users_risks_risk_owner_idTousers.last_name}` : 'Not Assigned',
-      manager: risk.users_risks_risk_manager_idTousers ? `${risk.users_risks_risk_manager_idTousers.first_name} ${risk.users_risks_risk_manager_idTousers.last_name}` : 'Not Assigned',
+      risk_code: risk.risk_code,
+      risk_title: risk.risk_title,
+      risk_description: risk.risk_description,
       status: risk.status,
-      priority: risk.priority,
-      identifiedDate: risk.identified_date,
-      nextReviewDate: risk.next_review_date,
-      documentationStatus: risk.documentation_status,
-      createdAt: risk.created_at
+      workflow_step: risk.workflow_step,
+      workflow_status: risk.workflow_status,
+      department: risk.departments?.department_name || 'Not Assigned',
+      category: risk.risk_categories?.category_name || 'Not Assigned',
+      submitted_by: risk.users_risks_submitted_byTousers ? `${risk.users_risks_submitted_byTousers.first_name} ${risk.users_risks_submitted_byTousers.last_name}` : 'Not Assigned',
+      date_reported: risk.date_reported,
+      created_at: risk.created_at
     };
 
     res.status(201).json(transformedRisk);
@@ -662,6 +699,67 @@ app.put('/api/risks/:id', async (req, res) => {
   } catch (error) {
     console.error('Risk update error:', error);
     res.status(500).json({ error: 'Failed to update risk' });
+  }
+});
+
+// Workflow management endpoint
+app.put('/api/risks/:id/workflow', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, workflow_step, workflow_status, updated_by_id } = req.body;
+
+    console.log('🔄 Updating workflow for risk:', id, { status, workflow_step, workflow_status });
+
+    const risk = await prisma.risks.update({
+      where: { id: parseInt(id) },
+      data: {
+        status: status,
+        workflow_step: workflow_step,
+        workflow_status: workflow_status,
+        updated_by_id: updated_by_id,
+        updated_at: new Date()
+      },
+      include: {
+        risk_categories: true,
+        departments: true,
+        users_risks_risk_owner_idTousers: {
+          select: {
+            first_name: true,
+            last_name: true
+          }
+        },
+        users_risks_submitted_byTousers: {
+          select: {
+            first_name: true,
+            last_name: true
+          }
+        }
+      }
+    });
+
+    // Transform response
+    const transformedRisk = {
+      id: risk.id,
+      risk_code: risk.risk_code,
+      risk_title: risk.risk_title,
+      risk_description: risk.risk_description,
+      status: risk.status,
+      workflow_step: risk.workflow_step,
+      workflow_status: risk.workflow_status,
+      department: risk.departments?.department_name || 'Not Assigned',
+      category: risk.risk_categories?.category_name || 'Not Assigned',
+      risk_owner: risk.users_risks_risk_owner_idTousers ? `${risk.users_risks_risk_owner_idTousers.first_name} ${risk.users_risks_risk_owner_idTousers.last_name}` : 'Not Assigned',
+      submitted_by: risk.users_risks_submitted_byTousers ? `${risk.users_risks_submitted_byTousers.first_name} ${risk.users_risks_submitted_byTousers.last_name}` : 'Not Assigned',
+      date_reported: risk.date_reported,
+      created_at: risk.created_at,
+      updated_at: risk.updated_at
+    };
+
+    console.log('✅ Workflow updated successfully for risk:', id);
+    res.json(transformedRisk);
+  } catch (error) {
+    console.error('❌ Workflow update error:', error);
+    res.status(500).json({ error: 'Failed to update workflow status' });
   }
 });
 
@@ -1175,6 +1273,13 @@ app.get('/api/risk-owner/risks', authenticateToken, async (req, res) => {
         departments: true,
         risk_categories: true,
         users_risks_submitted_byTousers: {
+          select: {
+            first_name: true,
+            last_name: true,
+            email: true
+          }
+        },
+        users_risks_risk_owner_idTousers: {
           select: {
             first_name: true,
             last_name: true,

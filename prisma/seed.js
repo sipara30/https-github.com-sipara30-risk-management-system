@@ -182,6 +182,143 @@ async function main() {
   }
   console.log('✅ Sample risk categories created');
 
+  // Create sample users for risk reporting and evaluation
+  const sampleUsers = [
+    {
+      employee_id: 'EMP001',
+      first_name: 'John',
+      last_name: 'Smith',
+      email: 'john.smith@company.com',
+      password_hash: 'password123', // This will be hashed in production
+      employment_status: 'Active',
+      assigned_role: 'User',
+      status: 'approved'
+    },
+    {
+      employee_id: 'EMP002',
+      first_name: 'Sarah',
+      last_name: 'Johnson',
+      email: 'sarah.johnson@company.com',
+      password_hash: 'password123', // This will be hashed in production
+      employment_status: 'Active',
+      assigned_role: 'RiskOwner',
+      status: 'approved'
+    },
+    {
+      employee_id: 'EMP003',
+      first_name: 'Mike',
+      last_name: 'Davis',
+      email: 'mike.davis@company.com',
+      password_hash: 'password123', // This will be hashed in production
+      employment_status: 'Active',
+      assigned_role: 'User',
+      status: 'approved'
+    }
+  ];
+
+  for (const user of sampleUsers) {
+    await prisma.users.upsert({
+      where: { email: user.email },
+      update: {},
+      create: user
+    });
+  }
+  console.log('✅ Sample users created');
+
+  // Get the created users, departments, and categories for risk creation
+  const john = await prisma.users.findUnique({ where: { email: 'john.smith@company.com' } });
+  const sarah = await prisma.users.findUnique({ where: { email: 'sarah.johnson@company.com' } });
+  const mike = await prisma.users.findUnique({ where: { email: 'mike.davis@company.com' } });
+  const itDept = await prisma.departments.findUnique({ where: { department_name: 'IT' } });
+  const financeDept = await prisma.departments.findUnique({ where: { department_name: 'Finance' } });
+  const techCategory = await prisma.risk_categories.findUnique({ where: { category_name: 'Technical' } });
+  const financialCategory = await prisma.risk_categories.findUnique({ where: { category_name: 'Financial' } });
+
+  // Create sample risks with complete data
+  const sampleRisks = [
+    {
+      risk_code: 'RISK-001',
+      risk_title: 'Data Center Power Failure',
+      risk_description: 'Risk of power failure in the main data center affecting critical business systems',
+      what_can_happen: 'Complete system outage affecting 500+ users and critical business operations',
+      department_id: itDept?.id,
+      risk_category_id: techCategory?.id,
+      submitted_by: john?.id,
+      status: 'Submitted',
+      priority: 'High',
+      date_reported: new Date('2024-01-15'),
+      workflow_step: 1,
+      workflow_status: {
+        step1_completed: true,
+        step2_completed: false,
+        step3_completed: false,
+        step4_completed: false,
+        step5_completed: false,
+        step6_completed: false,
+        last_updated: new Date().toISOString()
+      }
+    },
+    {
+      risk_code: 'RISK-002',
+      risk_title: 'Budget Overrun Risk',
+      risk_description: 'Risk of exceeding allocated budget for Q1 2024 due to unexpected costs',
+      what_can_happen: 'Financial constraints affecting project delivery and operational efficiency',
+      department_id: financeDept?.id,
+      risk_category_id: financialCategory?.id,
+      submitted_by: mike?.id,
+      evaluated_by: sarah?.id,
+      status: 'In Review',
+      priority: 'Medium',
+      date_reported: new Date('2024-01-10'),
+      date_evaluated: new Date('2024-01-12'),
+      assessment_notes: 'Risk assessment completed. Monitoring required for next 30 days.',
+      severity: 'Medium',
+      category_update: 'Financial',
+      status_update: 'In Review',
+      workflow_step: 2,
+      workflow_status: {
+        step1_completed: true,
+        step2_completed: true,
+        step3_completed: false,
+        step4_completed: false,
+        step5_completed: false,
+        step6_completed: false,
+        last_updated: new Date().toISOString()
+      }
+    },
+    {
+      risk_code: 'RISK-003',
+      risk_title: 'Cybersecurity Breach',
+      risk_description: 'Risk of unauthorized access to sensitive customer data',
+      what_can_happen: 'Data breach leading to regulatory fines and reputational damage',
+      department_id: itDept?.id,
+      risk_category_id: techCategory?.id,
+      submitted_by: john?.id,
+      status: 'Submitted',
+      priority: 'High',
+      date_reported: new Date('2024-01-20'),
+      workflow_step: 1,
+      workflow_status: {
+        step1_completed: true,
+        step2_completed: false,
+        step3_completed: false,
+        step4_completed: false,
+        step5_completed: false,
+        step6_completed: false,
+        last_updated: new Date().toISOString()
+      }
+    }
+  ];
+
+  for (const risk of sampleRisks) {
+    await prisma.risks.upsert({
+      where: { risk_code: risk.risk_code },
+      update: {},
+      create: risk
+    });
+  }
+  console.log('✅ Sample risks created');
+
   console.log('🎉 Database seeding completed!');
 }
 

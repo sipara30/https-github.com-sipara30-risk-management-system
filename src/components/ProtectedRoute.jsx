@@ -9,8 +9,11 @@ const ProtectedRoute = ({ children, requiredRoles = [], requireVerifiedApproved 
 
   // If not authenticated, redirect to landing page
   if (!isAuthenticated) {
+    console.log('🔒 Not authenticated, redirecting to landing page');
     return <Navigate to="/" replace />;
   }
+
+  console.log('🔒 ProtectedRoute - User authenticated:', currentUser);
 
   // If verification/approval required, do a basic client-side gate
   if (requireVerifiedApproved) {

@@ -21,7 +21,9 @@ import {
   getDashboardSections,
   approveUser,
   getUsers,
-  getRoles
+  getRoles,
+  getRisks,
+  updateRisk
 } from '../services/api';
 
 const AdminDashboard = () => {
@@ -33,6 +35,10 @@ const AdminDashboard = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
+  
+  // Risks state
+  const [risks, setRisks] = useState([]);
+  const [assigningOwner, setAssigningOwner] = useState({}); // riskId -> userId (temp selection)
 
   // Form states
   const [showUserForm, setShowUserForm] = useState(false);
@@ -186,43 +192,28 @@ const AdminDashboard = () => {
       console.log('Users data type:', typeof usersData);
       console.log('Users data structure:', JSON.stringify(usersData, null, 2));
       
-      // For now, we'll use a simple roles array since we don't have a getRoles endpoint
-      // In a real implementation, you'd have a getRoles() function
       const rolesData = await getRoles();
       console.log('Roles loaded:', rolesData);
       
       const sectionsData = await getDashboardSections();
       console.log('Dashboard sections loaded:', sectionsData);
-      console.log('Sections data type:', typeof sectionsData);
+      
+      // Fetch risks for the Risks tab
+      const risksData = await getRisks();
+      console.log('Risks loaded:', risksData);
       
       // Ensure we have arrays and handle different response formats
       const usersArray = Array.isArray(usersData) ? usersData : (usersData?.data || usersData?.users || []);
       const rolesArray = Array.isArray(rolesData) ? rolesData : (rolesData?.data || rolesData?.roles || []);
       const sectionsArray = Array.isArray(sectionsData) ? sectionsData : (sectionsData?.data || sectionsData?.sections || []);
+      const risksArray = Array.isArray(risksData) ? risksData : (risksData?.data || risksData?.risks || []);
       
-      console.log('Processed arrays:', {
-        users: usersArray,
-        roles: rolesArray,
-        sections: sectionsArray
-      });
-      
-      // Set the data in state
       setUsers(usersArray);
       setRoles(rolesArray);
       setDashboardSections(sectionsArray);
+      setRisks(risksArray);
       
-      console.log('Dashboard data loaded successfully:', {
-        users: usersArray.length,
-        roles: rolesArray.length,
-        sections: sectionsArray.length
-      });
-      
-      console.log('State updated with:', {
-        usersState: usersArray.length,
-        rolesState: rolesArray.length,
-        sectionsState: sectionsArray.length
-      });
-      
+      console.log('Dashboard data loaded successfully');
     } catch (err) {
       console.error('Dashboard data load error:', err);
       
@@ -506,6 +497,7 @@ const AdminDashboard = () => {
             {[
               { id: 'overview', name: 'Overview', icon: ChartBarIcon },
               { id: 'users', name: 'User Management', icon: UsersIcon },
+              { id: 'risks', name: 'Risks', icon: ShieldCheckIcon },
               { id: 'system', name: 'System Health', icon: CogIcon },
               { id: 'requests', name: 'Pending Requests', icon: ClockIcon }
             ].map((tab) => (
@@ -778,6 +770,80 @@ const AdminDashboard = () => {
                     </div>
                   </li>
                 ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Risks Tab */}
+        {activeTab === 'risks' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">Reported Risks</h2>
+            </div>
+            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+              <ul className="divide-y divide-gray-200">
+                {risks.map((risk) => (
+                  <li key={risk.id} className="px-6 py-4">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                      <div className="md:col-span-3">
+                        <div className="text-sm font-medium text-gray-900">{risk.risk_title || risk.title}</div>
+                        <div className="text-xs text-gray-500">{risk.risk_code || risk.code}</div>
+                      </div>
+                      <div className="md:col-span-2 text-sm text-gray-700">
+                        <div className="text-gray-500">Category</div>
+                        <div>{risk.category}</div>
+                      </div>
+                      <div className="md:col-span-2 text-sm text-gray-700">
+                        <div className="text-gray-500">Department</div>
+                        <div>{risk.department}</div>
+                      </div>
+                      <div className="md:col-span-2 text-sm text-gray-700">
+                        <div className="text-gray-500">Owner</div>
+                        <div>{risk.owner || 'Not Assigned'}</div>
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="block text-sm text-gray-600 mb-1">Assign/Change Owner</label>
+                        <div className="flex items-center space-x-2">
+                          <select
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                            value={assigningOwner[risk.id] ?? (risk.ownerId || '')}
+                            onChange={(e) => setAssigningOwner(prev => ({ ...prev, [risk.id]: e.target.value }))}
+                          >
+                            <option value="">Select user...</option>
+                            {users.map(u => (
+                              <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
+                            ))}
+                          </select>
+                          <button
+                            className="px-3 py-2 bg-primary text-white text-sm rounded-md hover:bg-black"
+                            onClick={async () => {
+                              try {
+                                const selectedUserId = assigningOwner[risk.id];
+                                if (!selectedUserId) {
+                                  setError('Select a user to assign as owner.');
+                                  return;
+                                }
+                                await updateRisk(risk.id, { risk_owner_id: parseInt(selectedUserId, 10) });
+                                setSuccess('Risk owner assigned successfully.');
+                                // Refresh risks list
+                                const refreshed = await getRisks();
+                                setRisks(Array.isArray(refreshed) ? refreshed : (refreshed?.data || refreshed?.risks || []));
+                              } catch (e) {
+                                setError(e.message || 'Failed to assign risk owner');
+                              }
+                            }}
+                          >
+                            Assign
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+                {risks.length === 0 && (
+                  <li className="px-6 py-12 text-center text-gray-500">No risks found.</li>
+                )}
               </ul>
             </div>
           </div>

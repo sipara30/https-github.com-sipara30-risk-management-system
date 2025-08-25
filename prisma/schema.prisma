@@ -65,6 +65,18 @@ model risks {
   evaluated_by                       Int?             // Risk Owner who evaluated
   date_evaluated                     DateTime?
   
+  // Workflow management fields
+  workflow_step                      Int              @default(1)  // Current step in 6-step process
+  workflow_status                    Json?            // Detailed workflow status tracking
+  treatment_plan                     String?          // Risk treatment plan
+  action_items                       Json?            // Array of action items with deadlines
+  monitoring_kpis                    Json?            // Key performance indicators for monitoring
+  review_frequency                   String?          // How often to review this risk
+  escalation_required                Boolean          @default(false)
+  escalation_reason                  String?
+  closure_date                       DateTime?
+  closure_reason                     String?
+  
   users_risks_created_by_idTousers   users?           @relation("risks_created_by_idTousers", fields: [created_by_id], references: [id])
   departments                        departments?     @relation(fields: [department_id], references: [id])
   risk_categories                    risk_categories? @relation(fields: [risk_category_id], references: [id])

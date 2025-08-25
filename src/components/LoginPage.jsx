@@ -105,7 +105,7 @@ const LoginPage = () => {
       
       // Redirect based on user role and permissions
       const roles = user.roles || [];
-      const userRole = user.role || user.role_name || '';
+      const userRole = user.assignedRole || user.role || user.role_name || '';
       
       console.log('👤 User roles:', roles);
       console.log('👤 User role:', userRole);
@@ -173,7 +173,7 @@ const LoginPage = () => {
         includesOwner: role.toLowerCase().includes('owner'),
         includesRiskOwner: role.toLowerCase().includes('riskowner'),
         includesRisk_Owner: role.toLowerCase().includes('risk_owner'),
-        includesRiskOwner: role.toLowerCase().includes('risk owner')
+        includesRiskOwnerSpace: role.toLowerCase().includes('risk owner')
       })));
       console.log('🔍 Normalized role check:', {
         normalizedRole: normalizedRole,
@@ -181,7 +181,7 @@ const LoginPage = () => {
         includesOwner: normalizedRole.includes('owner'),
         includesRiskOwner: normalizedRole.includes('riskowner'),
         includesRisk_Owner: normalizedRole.includes('risk_owner'),
-        includesRiskOwner: normalizedRole.includes('risk owner')
+        includesRiskOwnerSpace: normalizedRole.includes('risk owner')
       });
       
       // Check other roles
