@@ -10,10 +10,9 @@ import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import cookieParser from 'cookie-parser';
 
-// Load environment variables: prefer OS env; fallback to backend/.env if missing
-if (!process.env.DATABASE_URL || !process.env.JWT_SECRET) {
-  dotenv.config({ path: path.resolve(process.cwd(), 'backend/.env') });
-}
+// Load environment variables from backend/.env with override, then root .env
+dotenv.config({ path: path.resolve(process.cwd(), 'backend/.env'), override: true });
+dotenv.config({ override: false });
 
 const app = express();
 // Prisma client with connection management
@@ -42,6 +41,7 @@ const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
+const EMAIL_FROM = process.env.EMAIL_FROM || SMTP_USER || 'no-reply@example.com';
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 
 // Middleware
@@ -54,12 +54,20 @@ const createTransporter = () => {
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     console.warn('SMTP not fully configured. Set SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS to enable email.');
   }
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
+  const isSecure = SMTP_PORT === 465;
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST || 'localhost',
     port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
-    auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined
+    secure: isSecure, // true for 465, false for 587/STARTTLS
+    auth: (SMTP_USER && SMTP_PASS) ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+    requireTLS: SMTP_PORT === 587,
+    tls: {
+      // Some providers require relaxed certs in dev; keep strict in production
+      rejectUnauthorized: false
+    }
   });
+  console.log(`SMTP transporter configured for ${SMTP_HOST || 'localhost'}:${SMTP_PORT} (secure=${isSecure})`);
+  return transporter;
 };
 
 // Authentication middleware
@@ -264,9 +272,9 @@ app.post('/api/auth/register', async (req, res) => {
     // Send verification email if SMTP configured
     try {
       const transporter = createTransporter();
-      const verifyUrl = `${APP_URL}/verify-email/${verificationToken}`;
+      const verifyUrl = `${APP_URL}/api/auth/verify-email/${verificationToken}`;
       await transporter.sendMail({
-        from: SMTP_USER || 'no-reply@example.com',
+        from: EMAIL_FROM,
         to: email,
         subject: 'Verify your email',
         html: `<p>Hello ${firstName},</p><p>Please verify your email by clicking the link below:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`
@@ -1378,6 +1386,17 @@ process.on('SIGTERM', async () => {
   console.log('\n🛑 Shutting down gracefully...');
   await prisma.$disconnect();
   process.exit(0);
+});
+
+app.get('/api/admin/smtp-health', async (req, res) => {
+  try {
+    const transporter = createTransporter();
+    // verify checks connection configuration
+    await transporter.verify();
+    res.json({ ok: true, host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465 });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 
