@@ -617,7 +617,29 @@ const RiskOwnerDashboard = () => {
           step5_completed: assessmentData.completionPercentage >= 90,
           step6_completed: assessmentData.completionPercentage >= 95,
           last_updated: new Date().toISOString()
-        }
+        },
+
+        // Risk calculation fields - include these to save in database
+        likelihood: assessmentData.likelihood || evaluationForm.likelihood || undefined,
+        impact: assessmentData.impact || evaluationForm.impact || undefined,
+        calculated_risk_score: assessmentData.calculated_risk_score || evaluationForm.calculated_risk_score || undefined,
+        risk_level: assessmentData.risk_level || evaluationForm.riskLevel || undefined,
+        financial_impact: assessmentData.financial_impact || evaluationForm.financialImpact || undefined,
+        reputation_impact: assessmentData.reputation_impact || evaluationForm.reputationImpact || undefined,
+        legal_impact: assessmentData.legal_impact || evaluationForm.legalImpact || undefined,
+        environmental_impact: assessmentData.environmental_impact || evaluationForm.environmentalImpact || undefined,
+        time_impact: assessmentData.time_impact || evaluationForm.timeImpact || undefined,
+        other_impact: assessmentData.other_impact || evaluationForm.otherImpact || undefined,
+        financial_risk_score: assessmentData.financial_risk_score || evaluationForm.financialRiskScore || undefined,
+        reputation_risk_score: assessmentData.reputation_risk_score || evaluationForm.reputationRiskScore || undefined,
+        legal_risk_score: assessmentData.legal_risk_score || evaluationForm.legalRiskScore || undefined,
+        environmental_risk_score: assessmentData.environmental_risk_score || evaluationForm.environmentalRiskScore || undefined,
+        time_risk_score: assessmentData.time_risk_score || evaluationForm.timeRiskScore || undefined,
+        other_risk_score: assessmentData.other_risk_score || evaluationForm.otherRiskScore || undefined,
+        highest_risk_score: assessmentData.highest_risk_score || evaluationForm.highestRiskScore || undefined,
+        residual_likelihood: assessmentData.residual_likelihood || evaluationForm.residualLikelihood || undefined,
+        residual_impact: assessmentData.residual_impact || evaluationForm.residualImpact || undefined,
+        residual_score: assessmentData.residual_score || evaluationForm.residualScore || undefined
       };
 
       console.log('🔄 Submitting ISO 31000 assessment data:', completeAssessmentData);

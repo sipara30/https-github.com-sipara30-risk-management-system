@@ -827,19 +827,19 @@ const RoleBasedDashboard = () => {
                         {(() => {
                           const scoreCategories = [
                             { label: 'Critical', range: '0.561-0.72', color: 'bg-red-500', count: riskData.allRisks?.filter(r => {
-                              const score = parseFloat(r.highestRiskScore || r.calculated_risk_score || 0);
+                              const score = parseFloat(r.highest_risk_score || r.calculated_risk_score || 0);
                               return score >= 0.561 && score <= 0.72;
                             }).length || 0 },
                             { label: 'High', range: '0.241-0.56', color: 'bg-orange-500', count: riskData.allRisks?.filter(r => {
-                              const score = parseFloat(r.highestRiskScore || r.calculated_risk_score || 0);
+                              const score = parseFloat(r.highest_risk_score || r.calculated_risk_score || 0);
                               return score >= 0.241 && score <= 0.56;
                             }).length || 0 },
                             { label: 'Medium', range: '0.081-0.24', color: 'bg-yellow-500', count: riskData.allRisks?.filter(r => {
-                              const score = parseFloat(r.highestRiskScore || r.calculated_risk_score || 0);
+                              const score = parseFloat(r.highest_risk_score || r.calculated_risk_score || 0);
                               return score >= 0.081 && score <= 0.24;
                             }).length || 0 },
                             { label: 'Low', range: '0.005-0.08', color: 'bg-green-500', count: riskData.allRisks?.filter(r => {
-                              const score = parseFloat(r.highestRiskScore || r.calculated_risk_score || 0);
+                              const score = parseFloat(r.highest_risk_score || r.calculated_risk_score || 0);
                               return score >= 0.005 && score <= 0.08;
                             }).length || 0 }
                           ];
@@ -994,7 +994,7 @@ const RoleBasedDashboard = () => {
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {riskData.allRisks?.map((risk) => {
-                            const score = parseFloat(risk.highestRiskScore || risk.calculated_risk_score || 0);
+                            const score = parseFloat(risk.highest_risk_score || risk.calculated_risk_score || 0);
                             const scoreLevel = score >= 0.561 ? 'Critical' : score >= 0.241 ? 'High' : score >= 0.081 ? 'Medium' : 'Low';
                             const scoreColor = score >= 0.561 ? 'bg-red-100 text-red-800' : score >= 0.241 ? 'bg-orange-100 text-orange-800' : score >= 0.081 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800';
                             

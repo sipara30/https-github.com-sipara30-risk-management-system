@@ -77,6 +77,29 @@ model risks {
   closure_date                       DateTime?
   closure_reason                     String?
   
+  // Risk calculation fields
+  likelihood                         Decimal?         @db.Decimal(5,3)
+  impact                             Decimal?         @db.Decimal(5,3)
+  calculated_risk_score              Decimal?         @db.Decimal(6,3)
+  risk_level                         String?
+  financial_impact                   Decimal?         @db.Decimal(5,3)
+  reputation_impact                  Decimal?         @db.Decimal(5,3)
+  legal_impact                       Decimal?         @db.Decimal(5,3)
+  environmental_impact               Decimal?         @db.Decimal(5,3)
+  time_impact                        Decimal?         @db.Decimal(5,3)
+  other_impact                       Decimal?         @db.Decimal(5,3)
+  financial_risk_score               Decimal?         @db.Decimal(6,3)
+  reputation_risk_score              Decimal?         @db.Decimal(6,3)
+  legal_risk_score                   Decimal?         @db.Decimal(6,3)
+  environmental_risk_score           Decimal?         @db.Decimal(6,3)
+  time_risk_score                    Decimal?         @db.Decimal(6,3)
+  other_risk_score                   Decimal?         @db.Decimal(6,3)
+  highest_risk_score                 Decimal?         @db.Decimal(6,3)
+  residual_likelihood                Decimal?         @db.Decimal(5,3)
+  residual_impact                    Decimal?         @db.Decimal(5,3)
+  residual_score                     Decimal?         @db.Decimal(6,3)
+  treatment_strategy                 String?
+  
   users_risks_created_by_idTousers   users?           @relation("risks_created_by_idTousers", fields: [created_by_id], references: [id])
   departments                        departments?     @relation(fields: [department_id], references: [id])
   risk_categories                    risk_categories? @relation(fields: [risk_category_id], references: [id])

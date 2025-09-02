@@ -480,7 +480,32 @@ app.get('/api/risks', async (req, res) => {
       submitted_by_name: risk.users_risks_submitted_byTousers ? 
         `${risk.users_risks_submitted_byTousers.first_name} ${risk.users_risks_submitted_byTousers.last_name}` : 'Unknown',
       evaluated_by_name: risk.users_risks_evaluated_byTousers ? 
-        `${risk.users_risks_evaluated_byTousers.first_name} ${risk.users_risks_evaluated_byTousers.last_name}` : 'Not Evaluated'
+        `${risk.users_risks_evaluated_byTousers.first_name} ${risk.users_risks_evaluated_byTousers.last_name}` : 'Not Evaluated',
+      
+      // Risk calculation fields for CEO dashboard
+      likelihood: risk.likelihood,
+      impact: risk.impact,
+      calculated_risk_score: risk.calculated_risk_score,
+      risk_level: risk.risk_level,
+      financial_impact: risk.financial_impact,
+      reputation_impact: risk.reputation_impact,
+      legal_impact: risk.legal_impact,
+      environmental_impact: risk.environmental_impact,
+      time_impact: risk.time_impact,
+      other_impact: risk.other_impact,
+      financial_risk_score: risk.financial_risk_score,
+      reputation_risk_score: risk.reputation_risk_score,
+      legal_risk_score: risk.legal_risk_score,
+      environmental_risk_score: risk.environmental_risk_score,
+      time_risk_score: risk.time_risk_score,
+      other_risk_score: risk.other_risk_score,
+      highest_risk_score: risk.highest_risk_score,
+      residual_likelihood: risk.residual_likelihood,
+      residual_impact: risk.residual_impact,
+      residual_score: risk.residual_score,
+      treatment_strategy: risk.treatment_strategy,
+      workflow_step: risk.workflow_step,
+      workflow_status: risk.workflow_status
     }));
 
     res.json(transformedRisks);
@@ -1418,7 +1443,7 @@ app.get('/api/risk-owner/risks', authenticateToken, async (req, res) => {
 app.post('/api/risk-owner/evaluate/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { assessment_notes, severity, category_update, status_update, treatment_plan, action_items, review_frequency, next_review_date, monitoring_kpis, escalation_required, escalation_reason } = req.body;
+    const { assessment_notes, severity, category_update, status_update, treatment_plan, action_items, review_frequency, next_review_date, monitoring_kpis, escalation_required, escalation_reason, treatment_strategy, likelihood, impact, calculated_risk_score, risk_level, financial_impact, reputation_impact, legal_impact, environmental_impact, time_impact, other_impact, financial_risk_score, reputation_risk_score, legal_risk_score, environmental_risk_score, time_risk_score, other_risk_score, highest_risk_score, residual_likelihood, residual_impact, residual_score, workflow_step, workflow_status } = req.body;
     
     // Check if user has RiskOwner role
     const user = await prisma.users.findUnique({
@@ -1441,7 +1466,7 @@ app.post('/api/risk-owner/evaluate/:id', authenticateToken, async (req, res) => 
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Update risk with evaluation
+    // Update risk with evaluation including risk scores
     const updatedRisk = await prisma.risks.update({
       where: { id: parseInt(id) },
       data: {
@@ -1455,12 +1480,37 @@ app.post('/api/risk-owner/evaluate/:id', authenticateToken, async (req, res) => 
         updated_by_id: req.user.userId,
         updated_at: new Date(),
         treatment_plan: treatment_plan || undefined,
+        treatment_strategy: treatment_strategy || undefined,
         action_items: action_items || undefined,
         review_frequency: review_frequency || undefined,
         next_review_date: next_review_date ? new Date(next_review_date) : undefined,
         monitoring_kpis: monitoring_kpis || undefined,
         escalation_required: typeof escalation_required === 'boolean' ? escalation_required : undefined,
-        escalation_reason: escalation_reason || undefined
+        escalation_reason: escalation_reason || undefined,
+        workflow_step: workflow_step || undefined,
+        workflow_status: workflow_status || undefined,
+        
+        // Risk calculation fields
+        likelihood: likelihood ? parseFloat(likelihood) : undefined,
+        impact: impact ? parseFloat(impact) : undefined,
+        calculated_risk_score: calculated_risk_score ? parseFloat(calculated_risk_score) : undefined,
+        risk_level: risk_level || undefined,
+        financial_impact: financial_impact ? parseFloat(financial_impact) : undefined,
+        reputation_impact: reputation_impact ? parseFloat(reputation_impact) : undefined,
+        legal_impact: legal_impact ? parseFloat(legal_impact) : undefined,
+        environmental_impact: environmental_impact ? parseFloat(environmental_impact) : undefined,
+        time_impact: time_impact ? parseFloat(time_impact) : undefined,
+        other_impact: other_impact ? parseFloat(other_impact) : undefined,
+        financial_risk_score: financial_risk_score ? parseFloat(financial_risk_score) : undefined,
+        reputation_risk_score: reputation_risk_score ? parseFloat(reputation_risk_score) : undefined,
+        legal_risk_score: legal_risk_score ? parseFloat(legal_risk_score) : undefined,
+        environmental_risk_score: environmental_risk_score ? parseFloat(environmental_risk_score) : undefined,
+        time_risk_score: time_risk_score ? parseFloat(time_risk_score) : undefined,
+        other_risk_score: other_risk_score ? parseFloat(other_risk_score) : undefined,
+        highest_risk_score: highest_risk_score ? parseFloat(highest_risk_score) : undefined,
+        residual_likelihood: residual_likelihood ? parseFloat(residual_likelihood) : undefined,
+        residual_impact: residual_impact ? parseFloat(residual_impact) : undefined,
+        residual_score: residual_score ? parseFloat(residual_score) : undefined
       }
     });
 
