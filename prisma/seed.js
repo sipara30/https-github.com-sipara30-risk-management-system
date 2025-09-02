@@ -1,4 +1,10 @@
 import { PrismaClient } from '@prisma/client';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Ensure DATABASE_URL is available when running seeding standalone
+dotenv.config({ path: path.resolve(process.cwd(), 'backend/.env'), override: true });
+dotenv.config({ override: false });
 
 const prisma = new PrismaClient();
 
@@ -122,6 +128,46 @@ async function main() {
     });
   }
   console.log('✅ Roles created with permissions');
+
+  // Ensure a SystemAdmin user exists for initial login
+  const systemAdminRole = await prisma.roles.findUnique({ where: { role_name: 'SystemAdmin' } });
+  const adminAllowedSections = systemAdminRole?.default_dashboard_sections || ['overview', 'user_management', 'pending_requests', 'system_health', 'risk_management', 'reports', 'settings', 'audit_logs'];
+
+  const adminUser = await prisma.users.upsert({
+    where: { email: 'admin@admin.com' },
+    update: {
+      assigned_role: 'SystemAdmin',
+      allowed_dashboard_sections: adminAllowedSections,
+      permissions: systemAdminRole?.permissions || {},
+      status: 'approved',
+      email_verified: true
+    },
+    create: {
+      employee_id: 'EMP-ADMIN',
+      first_name: 'System',
+      last_name: 'Admin',
+      email: 'admin@admin.com',
+      username: 'admin',
+      // Presence of password_hash triggers simple check in server-prisma: password must equal '12345678'
+      password_hash: 'preset',
+      employment_status: 'Active',
+      assigned_role: 'SystemAdmin',
+      allowed_dashboard_sections: adminAllowedSections,
+      permissions: systemAdminRole?.permissions || {},
+      status: 'approved',
+      email_verified: true
+    }
+  });
+
+  // Ensure role mapping exists
+  if (systemAdminRole && adminUser) {
+    await prisma.user_roles.upsert({
+      where: { user_id_role_id: { user_id: adminUser.id, role_id: systemAdminRole.id } },
+      update: {},
+      create: { user_id: adminUser.id, role_id: systemAdminRole.id }
+    });
+  }
+  console.log('✅ SystemAdmin user ensured: admin@admin.com / 12345678');
 
   // Create default department if it doesn't exist
   await prisma.departments.upsert({

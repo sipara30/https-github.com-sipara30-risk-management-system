@@ -136,7 +136,10 @@ app.get('/api/health', (req, res) => {
     status: 'ok', 
     timestamp: new Date().toISOString(),
     database: 'connected',
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    pid: process.pid,
+    node: process.version
   });
 });
 
@@ -457,6 +460,16 @@ app.get('/api/risks', async (req, res) => {
       documentationStatus: risk.documentation_status,
       created_at: risk.created_at,
       updated_at: risk.updated_at,
+      assessment_notes: risk.assessment_notes,
+      severity: risk.severity,
+      category_update: risk.category_update,
+      status_update: risk.status_update,
+      treatment_plan: risk.treatment_plan,
+      action_items: risk.action_items,
+      review_frequency: risk.review_frequency,
+      monitoring_kpis: risk.monitoring_kpis,
+      escalation_required: risk.escalation_required,
+      escalation_reason: risk.escalation_reason,
       // Add the fields needed for CEO dashboard - keep original structure
       date_reported: risk.date_reported || risk.created_at,
       users_risks_submitted_byTousers: risk.users_risks_submitted_byTousers,
@@ -834,6 +847,103 @@ app.get('/api/admin/departments', authenticateToken, roleCheck('Admin', 'SystemA
     } else {
       res.status(500).json({ error: 'Failed to fetch departments: ' + error.message });
     }
+  }
+});
+
+// Create user (Admin)
+app.post('/api/admin/users', authenticateToken, roleCheck('Admin', 'SystemAdmin'), async (req, res) => {
+  try {
+    const { firstName, lastName, email, departmentId, roleId, employeeId, position, password } = req.body;
+
+    if (!firstName || !lastName || !email) {
+      return res.status(400).json({ error: 'firstName, lastName and email are required' });
+    }
+
+    const existing = await prisma.users.findFirst({ where: { email } });
+    if (existing) {
+      return res.status(400).json({ error: 'User with this email already exists' });
+    }
+
+    const role = roleId ? await prisma.roles.findUnique({ where: { id: parseInt(roleId) } }) : null;
+
+    const created = await prisma.users.create({
+      data: {
+        employee_id: employeeId && employeeId.trim() !== '' ? employeeId : `EMP-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        username: email.split('@')[0],
+        department_id: departmentId ? parseInt(departmentId) : null,
+        // Note: server login accepts '12345678' when password_hash exists
+        password_hash: password ? password : 'preset',
+        employment_status: 'Active',
+        status: 'approved',
+        email_verified: true,
+        assigned_role: role ? role.role_name : 'User',
+        allowed_dashboard_sections: role?.default_dashboard_sections || ['overview'],
+        permissions: role?.permissions || {}
+      }
+    });
+
+    if (role) {
+      await prisma.user_roles.create({ data: { user_id: created.id, role_id: role.id } });
+    }
+
+    res.status(201).json(created);
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ error: 'Failed to create user: ' + error.message });
+  }
+});
+
+// Update user (Admin)
+app.put('/api/admin/users/:id', authenticateToken, roleCheck('Admin', 'SystemAdmin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { firstName, lastName, email, departmentId, roleId, employeeId, position, password, status } = req.body;
+
+    const updates = {};
+    if (firstName !== undefined) updates.first_name = firstName;
+    if (lastName !== undefined) updates.last_name = lastName;
+    if (email !== undefined) updates.email = email;
+    if (departmentId !== undefined) updates.department_id = departmentId ? parseInt(departmentId) : null;
+    if (employeeId !== undefined) updates.employee_id = employeeId;
+    if (typeof status === 'string') updates.status = status;
+    if (password) updates.password_hash = password;
+
+    let role = null;
+    if (roleId) {
+      role = await prisma.roles.findUnique({ where: { id: parseInt(roleId) } });
+      updates.assigned_role = role?.role_name;
+      updates.allowed_dashboard_sections = role?.default_dashboard_sections || undefined;
+      updates.permissions = role?.permissions || undefined;
+    }
+
+    const updated = await prisma.users.update({ where: { id: parseInt(id) }, data: updates });
+
+    if (role) {
+      await prisma.user_roles.deleteMany({ where: { user_id: updated.id } });
+      await prisma.user_roles.create({ data: { user_id: updated.id, role_id: role.id } });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Failed to update user: ' + error.message });
+  }
+});
+
+// Delete user (Admin)
+app.delete('/api/admin/users/:id', authenticateToken, roleCheck('Admin', 'SystemAdmin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.user_roles.deleteMany({ where: { user_id: parseInt(id) } });
+    await prisma.risks.deleteMany({ where: { submitted_by: parseInt(id) } });
+    await prisma.users.delete({ where: { id: parseInt(id) } });
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Failed to delete user: ' + error.message });
   }
 });
 
@@ -1308,7 +1418,7 @@ app.get('/api/risk-owner/risks', authenticateToken, async (req, res) => {
 app.post('/api/risk-owner/evaluate/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { assessment_notes, severity, category_update, status_update } = req.body;
+    const { assessment_notes, severity, category_update, status_update, treatment_plan, action_items, review_frequency, next_review_date, monitoring_kpis, escalation_required, escalation_reason } = req.body;
     
     // Check if user has RiskOwner role
     const user = await prisma.users.findUnique({
@@ -1343,7 +1453,14 @@ app.post('/api/risk-owner/evaluate/:id', authenticateToken, async (req, res) => 
         evaluated_by: req.user.userId,
         date_evaluated: new Date(),
         updated_by_id: req.user.userId,
-        updated_at: new Date()
+        updated_at: new Date(),
+        treatment_plan: treatment_plan || undefined,
+        action_items: action_items || undefined,
+        review_frequency: review_frequency || undefined,
+        next_review_date: next_review_date ? new Date(next_review_date) : undefined,
+        monitoring_kpis: monitoring_kpis || undefined,
+        escalation_required: typeof escalation_required === 'boolean' ? escalation_required : undefined,
+        escalation_reason: escalation_reason || undefined
       }
     });
 

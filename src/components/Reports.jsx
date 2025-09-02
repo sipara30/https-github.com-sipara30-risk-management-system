@@ -1,13 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { loadRisks } from '../utils/storage';
+import { risksAPI } from '../services/api';
 
 const Reports = () => {
   const [risks, setRisks] = useState([]);
   const [selectedReport, setSelectedReport] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const savedRisks = loadRisks();
-    setRisks(savedRisks || []);
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await risksAPI.getAll();
+        const arr = Array.isArray(data) ? data : (data?.data || data?.risks || []);
+        setRisks(arr);
+      } catch (e) {
+        setError(e.message || 'Failed to load reports');
+        setRisks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+    // Auto-refresh every 30 seconds to keep stats dynamic
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
   }, []);
 
   // Risk matrix definitions from manual (copied from RiskForm)
@@ -186,7 +203,20 @@ const Reports = () => {
     };
   };
 
+  // Normalize status values from backend for robust counting
+  const normalizeStatus = (s) => {
+    const v = String(s || '').toLowerCase();
+    if (v.includes('review')) return 'In Review';
+    if (v.includes('submit')) return 'Submitted';
+    if (v.includes('mitigat') || v.includes('treat') || v.includes('close') || v.includes('complete')) return 'Treated';
+    return s || 'Submitted';
+  };
+
   const stats = calculateStats();
+  const inReviewCount = risks.filter(r => normalizeStatus(r.status) === 'In Review').length;
+  const submittedCount = risks.filter(r => normalizeStatus(r.status) === 'Submitted').length;
+  const treatedCount = risks.filter(r => normalizeStatus(r.status) === 'Treated').length;
+  const treatmentProgressPct = stats.totalRisks > 0 ? Math.round((treatedCount / stats.totalRisks) * 100) : 0;
 
   // Risk Matrix visualization
   const renderRiskMatrix = () => {
@@ -426,49 +456,50 @@ const Reports = () => {
   const renderRiskRegister = () => {
     return (
       <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-xl font-semibold text-black mb-4">Detailed Risk Register</h3>
+        <h3 className="text-xl font-semibold text-black mb-4">Updated Risk Register (overview)</h3>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dept</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {risks.map(risk => (
                 <tr key={risk.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{risk.risk_code}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{risk.risk_title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{risk.departments?.department_name || risk.department || 'N/A'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{risk.risk_categories?.category_name || risk.category || 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{risk.title}</div>
-                    <div className="text-sm text-gray-500">{risk.description.substring(0, 50)}...</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{risk.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {risk.calculated_risk_score || risk.highestRiskScore}
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      risk.priority === 'High' ? 'bg-red-100 text-red-800' :
+                      risk.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      {risk.priority || 'Medium'}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      (() => {
-                        const riskLevel = risk.calculated_risk_level || risk.riskLevel;
-                        if (riskLevel === 'Critical') return 'bg-red-100 text-red-800';
-                        if (riskLevel === 'High') return 'bg-orange-100 text-orange-800';
-                        if (riskLevel === 'Medium') return 'bg-yellow-100 text-yellow-800';
-                        return 'bg-green-100 text-green-800';
-                      })()
+                      risk.status === 'Submitted' ? 'bg-blue-100 text-blue-800' :
+                      risk.status === 'In Review' ? 'bg-yellow-100 text-yellow-800' :
+                      risk.status === 'Mitigated' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {risk.calculated_risk_level || risk.riskLevel}
+                      {risk.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{risk.status}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{risk.owner || 'Unassigned'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex justify-end mt-6">
+          <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Generate Printable Report</button>
         </div>
       </div>
     );
@@ -516,9 +547,27 @@ const Reports = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-black">Risk Management Reports</h2>
-        <div className="text-sm text-gray-500">
-          Generated on {new Date().toLocaleDateString()}
+        <h2 className="text-2xl font-semibold text-black">Executive Reports</h2>
+        <div className="text-sm text-gray-500">Generated on {new Date().toLocaleDateString()}</div>
+      </div>
+
+      {/* Summary tiles */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div className="rounded-lg p-6 bg-green-50 border border-green-200">
+          <div className="text-sm text-green-700 mb-2">Treatment Progress</div>
+          <div className="text-4xl font-extrabold text-green-700">{treatmentProgressPct}%</div>
+        </div>
+        <div className="rounded-lg p-6 bg-blue-50 border border-blue-200">
+          <div className="text-sm text-blue-700 mb-2">In Review</div>
+          <div className="text-4xl font-extrabold text-blue-700">{inReviewCount}</div>
+        </div>
+        <div className="rounded-lg p-6 bg-yellow-50 border border-yellow-200">
+          <div className="text-sm text-yellow-700 mb-2">Open (Submitted)</div>
+          <div className="text-4xl font-extrabold text-yellow-700">{submittedCount}</div>
+        </div>
+        <div className="rounded-lg p-6 bg-gray-50 border border-gray-200">
+          <div className="text-sm text-gray-700 mb-2">Treated</div>
+          <div className="text-4xl font-extrabold text-gray-900">{treatedCount}</div>
         </div>
       </div>
 

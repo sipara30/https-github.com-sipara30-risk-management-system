@@ -434,11 +434,16 @@ const RiskOwnerDashboard = () => {
 
       if (response.ok) {
         const data = await response.json();
+        // Ensure JSON fields are arrays/objects
+        const normalized = Array.isArray(data) ? data.map(r => ({
+          ...r,
+          action_items: (typeof r.action_items === 'string') ? (() => { try { return JSON.parse(r.action_items); } catch { return []; } })() : r.action_items,
+        })) : [];
         const myUserId = user?.id;
-        const assignedOnly = Array.isArray(data) ? data.filter(r => {
+        const assignedOnly = normalized.filter(r => {
           const ownerId = r.risk_owner_id ?? r.ownerId ?? r.assigned_owner_id;
           return String(ownerId ?? '') === String(myUserId ?? '');
-        }) : [];
+        });
         setRisks(assignedOnly);
       } else {
         console.error('Failed to load risks');
@@ -577,7 +582,20 @@ const RiskOwnerDashboard = () => {
         // Include other fields
         evaluated_by: user?.id,
         date_evaluated: new Date().toISOString().split('T')[0],
-        risk_id: selectedRisk?.id
+        risk_id: selectedRisk?.id,
+        treatment_plan: assessmentData.treatmentPlan || undefined,
+        action_items: Array.isArray(assessmentData.actionItems) ? assessmentData.actionItems : undefined,
+        review_frequency: assessmentData.reviewFrequency || undefined,
+        next_review_date: assessmentData.nextReviewDate || undefined,
+        monitoring_kpis: {
+          keyPerformanceIndicators: assessmentData.keyPerformanceIndicators || undefined,
+          riskOwnerName: assessmentData.riskOwnerName || undefined,
+          riskOwnerTitle: assessmentData.riskOwnerTitle || undefined,
+          riskOwnerDepartment: assessmentData.riskOwnerDepartment || undefined,
+          riskOwnerContact: assessmentData.riskOwnerContact || undefined
+        },
+        escalation_required: typeof assessmentData.escalationRequired === 'boolean' ? assessmentData.escalationRequired : undefined,
+        escalation_reason: assessmentData.escalationReason || undefined
       };
 
       console.log('🔄 Submitting ISO 31000 assessment data:', completeAssessmentData);
@@ -592,20 +610,21 @@ const RiskOwnerDashboard = () => {
       });
 
       if (response.ok) {
-        setEvaluateSuccess(true);
-        closeEvaluationModal();
-        
         console.log('✅ ISO 31000 assessment submitted successfully');
-        
-        // Reload risks to show updated data
+        // Pull fresh risk list to ensure DB values render on next open
+        await loadRisks();
+        setEvaluateSuccess(true);
+        // Keep modal open briefly to show success, then close
         setTimeout(() => {
-          loadRisks();
           setEvaluateSuccess(false);
-        }, 1000);
+          closeEvaluationModal();
+        }, 600);
       } else {
-        const errorData = await response.json();
-        console.error('❌ ISO 31000 assessment submission failed:', errorData);
-        setEvaluateError(errorData.error || 'Failed to submit assessment');
+        const errorText = await response.text().catch(() => '');
+        let errorMsg = 'Failed to submit assessment';
+        try { const j = JSON.parse(errorText); errorMsg = j.error || errorMsg; } catch {}
+        console.error('❌ ISO 31000 assessment submission failed:', errorText);
+        setEvaluateError(errorMsg);
       }
     } catch (error) {
       console.error('❌ ISO 31000 assessment submission error:', error);

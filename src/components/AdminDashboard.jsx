@@ -23,7 +23,9 @@ import {
   getUsers,
   getRoles,
   getRisks,
-  updateRisk
+  updateRisk,
+  adminAPI,
+  referenceAPI
 } from '../services/api';
 
 const AdminDashboard = () => {
@@ -31,6 +33,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [dashboardSections, setDashboardSections] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -193,6 +196,10 @@ const AdminDashboard = () => {
       console.log('Users data structure:', JSON.stringify(usersData, null, 2));
       
       const rolesData = await getRoles();
+      const departmentsData = await referenceAPI.getDepartments().catch(async () => {
+        // fallback to admin endpoint if needed
+        try { return await adminAPI.getDepartments(); } catch { return []; }
+      });
       console.log('Roles loaded:', rolesData);
       
       const sectionsData = await getDashboardSections();
@@ -205,12 +212,14 @@ const AdminDashboard = () => {
       // Ensure we have arrays and handle different response formats
       const usersArray = Array.isArray(usersData) ? usersData : (usersData?.data || usersData?.users || []);
       const rolesArray = Array.isArray(rolesData) ? rolesData : (rolesData?.data || rolesData?.roles || []);
+      const departmentsArray = Array.isArray(departmentsData) ? departmentsData : (departmentsData?.data || departmentsData?.departments || []);
       const sectionsArray = Array.isArray(sectionsData) ? sectionsData : (sectionsData?.data || sectionsData?.sections || []);
       const risksArray = Array.isArray(risksData) ? risksData : (risksData?.data || risksData?.risks || []);
       
       setUsers(usersArray);
       setRoles(rolesArray);
       setDashboardSections(sectionsArray);
+      setDepartments(departmentsArray);
       setRisks(risksArray);
       
       console.log('Dashboard data loaded successfully');
@@ -1089,9 +1098,9 @@ const AdminDashboard = () => {
                     required
                   >
                     <option value="">Select Department</option>
-                    {/* departments.map(dept => ( // Removed as per edit hint */}
-                      {/* <option key={dept.id} value={dept.id}>{dept.department_name}</option> */}
-                    {/* ))} */}
+                    {Array.isArray(departments) && departments.map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.department_name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -1106,9 +1115,9 @@ const AdminDashboard = () => {
                     required
                   >
                     <option value="">Select Role</option>
-                    {/* roles.map(role => ( // Removed as per edit hint */}
-                      {/* <option key={role.id} value={role.id}>{role.role_name}</option> */}
-                    {/* ))} */}
+                    {Array.isArray(roles) && roles.map(role => (
+                      <option key={role.id} value={role.id}>{role.role_name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

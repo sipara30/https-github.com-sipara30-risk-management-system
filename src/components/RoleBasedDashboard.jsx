@@ -17,6 +17,7 @@ import {
   risksAPI,
   referenceAPI
 } from '../services/api';
+import Reports from './Reports';
 
 const RoleBasedDashboard = () => {
   const [user, setUser] = useState(null);
@@ -254,25 +255,43 @@ const RoleBasedDashboard = () => {
           break;
         case 'system_health':
           if (!systemHealthData) {
-            // System health and performance metrics
-            const [users] = await Promise.all([
-              referenceAPI.getUsers()
-            ]);
-            
-            const systemHealthData = {
-              systemStatus: 'Healthy',
-              uptime: '99.9%',
-              activeUsers: users.length,
-              databaseStatus: 'Connected',
-              apiStatus: 'Operational',
-              lastBackup: new Date().toISOString(),
-              performanceMetrics: {
-                responseTime: '120ms',
-                throughput: '1000 requests/min',
-                errorRate: '0.1%'
-              }
-            };
-            setSystemHealthData(systemHealthData);
+            try {
+              const auth = localStorage.getItem('authToken');
+              const headers = { 'Content-Type': 'application/json', ...(auth ? { Authorization: `Bearer ${auth}` } : {}) };
+
+              const fetchJson = async (url, opts) => {
+                try {
+                  const res = await fetch(url, { ...opts, headers });
+                  if (!res.ok) throw new Error(`${res.status}`);
+                  return await res.json();
+                } catch (e) { return null; }
+              };
+
+              const [health, ceoHealth, smtp, users] = await Promise.all([
+                fetchJson('http://localhost:3001/api/health'),
+                fetchJson('http://localhost:3001/api/ceo/system-health'),
+                fetchJson('http://localhost:3001/api/admin/smtp-health'),
+                referenceAPI.getUsers().catch(() => [])
+              ]);
+
+              const normalized = {
+                status: (health?.status || health?.success === true ? 'healthy' : ceoHealth?.status) || 'unknown',
+                uptime: ceoHealth?.uptime ?? health?.uptime ?? 0,
+                memoryUsage: ceoHealth?.memoryUsage ?? {},
+                databaseStatus: health?.database || ceoHealth?.databaseStatus || 'unknown',
+                lastBackup: ceoHealth?.lastBackup || null,
+                activeConnections: ceoHealth?.activeConnections ?? 0,
+                systemLoad: ceoHealth?.systemLoad ?? 0,
+                smtp: smtp?.ok ? 'connected' : (smtp ? 'error' : 'unknown'),
+                apiStatus: ((health && (health.status === 'ok' || health.success)) ? 'Operational' : 'Degraded'),
+                activeUsers: Array.isArray(users) ? users.length : 0
+              };
+
+              setSystemHealthData(normalized);
+            } catch (e) {
+              console.error('Error loading system health:', e);
+              setSystemHealthData({ status: 'unknown', uptime: 0, databaseStatus: 'unknown', apiStatus: 'Degraded' });
+            }
           }
           break;
         default:
@@ -905,64 +924,7 @@ const RoleBasedDashboard = () => {
         {/* Reports Tab */}
         {activeTab === 'reports' && (
           <div className="space-y-6">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Executive Reports</h2>
-              
-              {reportsData ? (
-                <div className="space-y-4">
-                  {reportsData.reports?.map((report) => (
-                    <div key={report.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">{report.title}</h3>
-                          <p className="text-gray-600 mb-3">{report.description}</p>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span className="flex items-center">
-                              <DocumentTextIcon className="h-4 w-4 mr-1" />
-                              {report.type}
-                            </span>
-                            <span className="flex items-center">
-                              <ClockIcon className="h-4 w-4 mr-1" />
-                              Last generated: {formatDate(report.lastGenerated)}
-                            </span>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              report.status === 'available' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {report.status}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                            <EyeIcon className="h-5 w-5" />
-                          </button>
-                          <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                            <ArrowDownTrayIcon className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Generate New Report */}
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Generate Custom Report</h3>
-                    <p className="text-gray-500 mb-4">Create a new executive report with custom parameters</p>
-                    <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                      Create Report
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-                  <p className="text-gray-500">Loading reports data...</p>
-                </div>
-              )}
-            </div>
+            <Reports />
           </div>
         )}
 
@@ -998,7 +960,7 @@ const RoleBasedDashboard = () => {
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600">Uptime</span>
                           <span className="font-medium">
-                            {formatUptime(systemHealthData.uptime)}
+                            {formatUptime(systemHealthData.uptime || 0)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -1032,13 +994,13 @@ const RoleBasedDashboard = () => {
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-gray-600">Memory Usage</span>
                             <span className="text-sm font-medium">
-                              {Math.round(systemHealthData.memoryUsage?.heapUsed / 1024 / 1024)} MB
+                              {Math.round((systemHealthData.memoryUsage?.heapUsed || 0) / 1024 / 1024)} MB
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div 
                               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${(systemHealthData.memoryUsage?.heapUsed / systemHealthData.memoryUsage?.heapTotal) * 100}%` }}
+                              style={{ width: `${((systemHealthData.memoryUsage?.heapUsed || 0) / (systemHealthData.memoryUsage?.heapTotal || 1)) * 100}%` }}
                             ></div>
                           </div>
                         </div>
