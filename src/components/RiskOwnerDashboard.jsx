@@ -68,7 +68,11 @@ const RiskOwnerDashboard = () => {
     assessment_notes: '',
     severity: '',
     category_update: '',
-    status_update: ''
+    status_update: '',
+    riskOwnerName: '',
+    riskOwnerTitle: '',
+    riskOwnerDepartment: '',
+    riskOwnerContact: ''
   });
   
   // State for form submission
@@ -85,13 +89,13 @@ const RiskOwnerDashboard = () => {
   const [categories, setCategories] = useState([]);
   const [users, setUsers] = useState([]);
   
-  // Risk matrix definitions from manual (copied from RiskForm)
+  // Risk matrix definitions from manual (updated scale 0.1 to 0.9)
   const likelihoodOptions = [
-    { value: 0.05, label: '0.05 - Very Low', description: 'Historically, the event has occurred very infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were the event to occur over the course of the project, the event would be considered exceptional.' },
-    { value: 0.1, label: '0.1 - Low', description: 'Historically, the event has been known to occur infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered remarkable.' },
-    { value: 0.2, label: '0.2 - Moderate', description: 'Historically, the event has been known to occur, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, it is plausible for this event to occur over the course of this project.' },
-    { value: 0.4, label: '0.4 - High', description: 'Historically, the event has been known to occur frequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered unremarkable.' },
-    { value: 0.8, label: '0.8 - Very High', description: 'Historically, the event has been known to occur very frequently, based on comparisons with similar projects conducted under similar conditions. Based on current project circumstances, the event is expected to occur over the course of this project.' }
+    { value: 0.1, label: '0.1 - Very Low', description: 'Historically, the event has occurred very infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were the event to occur over the course of the project, the event would be considered exceptional.' },
+    { value: 0.3, label: '0.3 - Low', description: 'Historically, the event has been known to occur infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered remarkable.' },
+    { value: 0.5, label: '0.5 - Moderate', description: 'Historically, the event has been known to occur, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, it is plausible for this event to occur over the course of this project.' },
+    { value: 0.7, label: '0.7 - High', description: 'Historically, the event has been known to occur frequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered unremarkable.' },
+    { value: 0.9, label: '0.9 - Very High', description: 'Historically, the event has been known to occur very frequently, based on comparisons with similar projects conducted under similar conditions. Based on current project circumstances, the event is expected to occur over the course of this project.' }
   ];
 
   const impactOptions = [
@@ -169,15 +173,15 @@ const RiskOwnerDashboard = () => {
     }
   };
 
-  // Calculate risk score and level based on manual matrix
+  // Calculate risk score and level based on manual matrix (updated for 0.1-0.9 likelihood scale)
   const calculateRiskScore = (likelihood, impact) => {
     const score = likelihood * impact;
     let level = '';
-    if (score >= 0.01 && score <= 0.05) level = 'Low';
-    else if (score >= 0.06 && score <= 0.15) level = 'Medium';
-    else if (score >= 0.16 && score <= 0.35) level = 'High';
-    else if (score >= 0.36 && score <= 0.72) level = 'Critical';
-    return { score: score.toFixed(2), level };
+    if (score >= 0.005 && score <= 0.08) level = 'Low';
+    else if (score >= 0.081 && score <= 0.24) level = 'Medium';
+    else if (score >= 0.241 && score <= 0.56) level = 'High';
+    else if (score >= 0.561 && score <= 0.72) level = 'Critical';
+    return { score: score.toFixed(3), level };
   };
 
   // Calculate risk score for selected category
@@ -499,7 +503,11 @@ const RiskOwnerDashboard = () => {
       assessment_notes: risk.assessment_notes || '',
       severity: risk.severity || '',
       category_update: risk.category_update || '',
-      status_update: risk.status_update || 'Open'
+      status_update: risk.status_update || 'Open',
+      riskOwnerName: risk.riskOwnerName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '',
+      riskOwnerTitle: risk.riskOwnerTitle || user?.position || '',
+      riskOwnerDepartment: risk.riskOwnerDepartment || user?.department || '',
+      riskOwnerContact: risk.riskOwnerContact || user?.email || ''
     });
     setShowEvaluationModal(true);
   };
@@ -583,19 +591,33 @@ const RiskOwnerDashboard = () => {
         evaluated_by: user?.id,
         date_evaluated: new Date().toISOString().split('T')[0],
         risk_id: selectedRisk?.id,
+        risk_owner_name: assessmentData.riskOwnerName || evaluationForm.riskOwnerName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+        treatment_strategy: assessmentData.treatmentStrategy || undefined,
         treatment_plan: assessmentData.treatmentPlan || undefined,
         action_items: Array.isArray(assessmentData.actionItems) ? assessmentData.actionItems : undefined,
         review_frequency: assessmentData.reviewFrequency || undefined,
         next_review_date: assessmentData.nextReviewDate || undefined,
         monitoring_kpis: {
           keyPerformanceIndicators: assessmentData.keyPerformanceIndicators || undefined,
-          riskOwnerName: assessmentData.riskOwnerName || undefined,
-          riskOwnerTitle: assessmentData.riskOwnerTitle || undefined,
-          riskOwnerDepartment: assessmentData.riskOwnerDepartment || undefined,
-          riskOwnerContact: assessmentData.riskOwnerContact || undefined
+          riskOwnerName: assessmentData.riskOwnerName || evaluationForm.riskOwnerName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+          riskOwnerTitle: assessmentData.riskOwnerTitle || evaluationForm.riskOwnerTitle || user?.position || '',
+          riskOwnerDepartment: assessmentData.riskOwnerDepartment || evaluationForm.riskOwnerDepartment || user?.department || '',
+          riskOwnerContact: assessmentData.riskOwnerContact || evaluationForm.riskOwnerContact || user?.email || ''
         },
         escalation_required: typeof assessmentData.escalationRequired === 'boolean' ? assessmentData.escalationRequired : undefined,
-        escalation_reason: assessmentData.escalationReason || undefined
+        escalation_reason: assessmentData.escalationReason || undefined,
+        
+        // Update workflow step based on completion
+        workflow_step: assessmentData.completionPercentage >= 95 ? 6 : 4,
+        workflow_status: {
+          step1_completed: true,
+          step2_completed: true,
+          step3_completed: true,
+          step4_completed: true,
+          step5_completed: assessmentData.completionPercentage >= 90,
+          step6_completed: assessmentData.completionPercentage >= 95,
+          last_updated: new Date().toISOString()
+        }
       };
 
       console.log('🔄 Submitting ISO 31000 assessment data:', completeAssessmentData);
@@ -610,7 +632,17 @@ const RiskOwnerDashboard = () => {
       });
 
       if (response.ok) {
-        console.log('✅ ISO 31000 assessment submitted successfully');
+        const result = await response.json();
+        
+        const completionMsg = completeAssessmentData.workflow_step === 6 ? 
+          '✅ Risk evaluation completed and marked as resolved!' : 
+          '✅ Risk evaluation submitted successfully!';
+        
+        console.log(completionMsg, result);
+        
+        // Show success feedback
+        alert(completionMsg + (completeAssessmentData.workflow_step === 6 ? ' The risk status has been updated to reflect completion.' : ''));
+        
         // Pull fresh risk list to ensure DB values render on next open
         await loadRisks();
         setEvaluateSuccess(true);
@@ -618,7 +650,7 @@ const RiskOwnerDashboard = () => {
         setTimeout(() => {
           setEvaluateSuccess(false);
           closeEvaluationModal();
-        }, 600);
+        }, 1000);
       } else {
         const errorText = await response.text().catch(() => '');
         let errorMsg = 'Failed to submit assessment';
@@ -1154,6 +1186,7 @@ const RiskOwnerDashboard = () => {
                 risk={selectedRisk}
                 loading={evaluating}
                 users={users || []}
+                initialData={evaluationForm}
                 onSubmit={handleEvaluationSubmit}
                 onCancel={closeEvaluationModal}
               />

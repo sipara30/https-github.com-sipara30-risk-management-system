@@ -27,13 +27,13 @@ const Reports = () => {
     return () => clearInterval(id);
   }, []);
 
-  // Risk matrix definitions from manual (copied from RiskForm)
+  // Risk matrix definitions from manual (updated scale 0.1 to 0.9)
   const likelihoodOptions = [
-    { value: 0.05, label: '0.05 - Very Low', description: 'Historically, the event has occurred very infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were the event to occur over the course of the project, the event would be considered exceptional.' },
-    { value: 0.1, label: '0.1 - Low', description: 'Historically, the event has been known to occur infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered remarkable.' },
-    { value: 0.2, label: '0.2 - Moderate', description: 'Historically, the event has been known to occur, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, it is plausible for this event to occur over the course of this project.' },
-    { value: 0.4, label: '0.4 - High', description: 'Historically, the event has been known to occur frequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered unremarkable.' },
-    { value: 0.8, label: '0.8 - Very High', description: 'Historically, the event has been known to occur very frequently, based on comparisons with similar projects conducted under similar conditions. Based on current project circumstances, the event is expected to occur over the course of this project.' }
+    { value: 0.1, label: '0.1 - Very Low', description: 'Historically, the event has occurred very infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were the event to occur over the course of the project, the event would be considered exceptional.' },
+    { value: 0.3, label: '0.3 - Low', description: 'Historically, the event has been known to occur infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered remarkable.' },
+    { value: 0.5, label: '0.5 - Moderate', description: 'Historically, the event has been known to occur, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, it is plausible for this event to occur over the course of this project.' },
+    { value: 0.7, label: '0.7 - High', description: 'Historically, the event has been known to occur frequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered unremarkable.' },
+    { value: 0.9, label: '0.9 - Very High', description: 'Historically, the event has been known to occur very frequently, based on comparisons with similar projects conducted under similar conditions. Based on current project circumstances, the event is expected to occur over the course of this project.' }
   ];
 
   const impactOptions = [
@@ -111,15 +111,15 @@ const Reports = () => {
     }
   };
 
-  // Calculate risk score and level based on manual matrix
+  // Calculate risk score and level based on manual matrix (updated for 0.1-0.9 likelihood scale)
   const calculateRiskScore = (likelihood, impact) => {
     const score = likelihood * impact;
     let level = '';
-    if (score >= 0.01 && score <= 0.05) level = 'Low';
-    else if (score >= 0.06 && score <= 0.15) level = 'Medium';
-    else if (score >= 0.16 && score <= 0.35) level = 'High';
-    else if (score >= 0.36 && score <= 0.72) level = 'Critical';
-    return { score: score.toFixed(2), level };
+    if (score >= 0.005 && score <= 0.08) level = 'Low';
+    else if (score >= 0.081 && score <= 0.24) level = 'Medium';
+    else if (score >= 0.241 && score <= 0.56) level = 'High';
+    else if (score >= 0.561 && score <= 0.72) level = 'Critical';
+    return { score: score.toFixed(3), level };
   };
 
   // Calculate risk score for selected category
@@ -399,21 +399,21 @@ const Reports = () => {
   // Risk Score Distribution
   const renderRiskScoreDistribution = () => {
     const scoreRanges = {
-      '0.01-0.05': risks.filter(r => {
+      '0.005-0.08': risks.filter(r => {
         const score = r.calculated_risk_score ? parseFloat(r.calculated_risk_score) : parseFloat(r.highestRiskScore) || 0;
-        return score >= 0.01 && score <= 0.05;
+        return score >= 0.005 && score <= 0.08;
       }).length,
-      '0.06-0.15': risks.filter(r => {
+      '0.081-0.24': risks.filter(r => {
         const score = r.calculated_risk_score ? parseFloat(r.calculated_risk_score) : parseFloat(r.highestRiskScore) || 0;
-        return score >= 0.06 && score <= 0.15;
+        return score >= 0.081 && score <= 0.24;
       }).length,
-      '0.16-0.35': risks.filter(r => {
+      '0.241-0.56': risks.filter(r => {
         const score = r.calculated_risk_score ? parseFloat(r.calculated_risk_score) : parseFloat(r.highestRiskScore) || 0;
-        return score >= 0.16 && score <= 0.35;
+        return score >= 0.241 && score <= 0.56;
       }).length,
-      '0.36-0.72': risks.filter(r => {
+      '0.561-0.72': risks.filter(r => {
         const score = r.calculated_risk_score ? parseFloat(r.calculated_risk_score) : parseFloat(r.highestRiskScore) || 0;
-        return score >= 0.36 && score <= 0.72;
+        return score >= 0.561 && score <= 0.72;
       }).length
     };
 

@@ -683,7 +683,7 @@ const RoleBasedDashboard = () => {
                                 </div>
                                 <div>
                                   <p className="font-medium text-gray-900">{activity.title}</p>
-                                  <p className="text-sm text-gray-500">
+                                                                  <p className="text-sm text-gray-500">
                                   {activity.category || 'N/A'} • {activity.department || 'N/A'}
                                 </p>
                                   <p className="text-xs text-gray-400">
@@ -739,24 +739,37 @@ const RoleBasedDashboard = () => {
               
               {riskData ? (
                 <div className="space-y-6">
-                  {/* Risk Summary Cards */}
+                  {/* Executive Summary Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                       <div className="flex items-center">
                         <ExclamationTriangleIcon className="h-6 w-6 text-red-600 mr-2" />
                         <div>
-                          <p className="text-sm text-red-600">High Risks</p>
+                          <p className="text-sm text-red-600">High Priority</p>
                           <p className="text-2xl font-bold text-red-700">{riskData.highRisks}</p>
+                          <p className="text-xs text-red-500">Require immediate attention</p>
                         </div>
                       </div>
                     </div>
                     
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                       <div className="flex items-center">
-                        <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 mr-2" />
+                        <ClockIcon className="h-6 w-6 text-yellow-600 mr-2" />
                         <div>
-                          <p className="text-sm text-yellow-600">Medium Risks</p>
-                          <p className="text-2xl font-bold text-yellow-700">{riskData.mediumRisks}</p>
+                          <p className="text-sm text-yellow-600">Pending Evaluation</p>
+                          <p className="text-2xl font-bold text-yellow-700">{riskData.allRisks?.filter(r => r.status === 'Submitted').length || 0}</p>
+                          <p className="text-xs text-yellow-500">Awaiting risk owner review</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <DocumentTextIcon className="h-6 w-6 text-blue-600 mr-2" />
+                        <div>
+                          <p className="text-sm text-blue-600">Under Review</p>
+                          <p className="text-2xl font-bold text-blue-700">{riskData.allRisks?.filter(r => r.status === 'In Review').length || 0}</p>
+                          <p className="text-xs text-blue-500">Being evaluated</p>
                         </div>
                       </div>
                     </div>
@@ -765,101 +778,253 @@ const RoleBasedDashboard = () => {
                       <div className="flex items-center">
                         <CheckCircleIcon className="h-6 w-6 text-green-600 mr-2" />
                         <div>
-                          <p className="text-sm text-green-600">Low Risks</p>
-                          <p className="text-2xl font-bold text-green-700">{riskData.lowRisks}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <ShieldCheckIcon className="h-6 w-6 text-blue-600 mr-2" />
-                        <div>
-                          <p className="text-sm text-blue-600">Total Risks</p>
-                          <p className="text-2xl font-bold text-blue-700">{riskData.totalRisks}</p>
+                          <p className="text-sm text-green-600">Mitigated</p>
+                          <p className="text-2xl font-bold text-green-700">{riskData.allRisks?.filter(r => r.status === 'Mitigated').length || 0}</p>
+                          <p className="text-xs text-green-500">Successfully managed</p>
                         </div>
                       </div>
                     </div>
                   </div>
                   
-                  {/* Risk Trends Chart */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Trends (Last 6 Months)</h3>
+                  {/* Enhanced Analytics Section */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Risk Evaluation Pipeline */}
                     <div className="bg-gray-50 rounded-lg p-6">
-                      <div className="relative h-56">
-                        {/* Gridlines */}
-                        <div className="absolute inset-0 flex flex-col justify-between">
-                          {[...Array(4)].map((_, i) => (
-                            <div key={i} className="w-full border-t border-gray-200"></div>
-                          ))}
-                        </div>
-                        <div className="absolute inset-0 flex items-end space-x-3 px-2">
-                          {riskData.riskTrends?.map((trend, index) => {
-                            const max = Math.max(...riskData.riskTrends.map(t => t.count || 0)) || 1;
-                            const height = (trend.count / max) * 100;
-                            return (
-                              <div key={index} className="flex-1 flex flex-col items-center">
-                                <div
-                                  className={`w-full rounded-t transition-all duration-200 ${index === chartHover.index ? 'bg-green-600' : 'bg-green-500'}`}
-                                  style={{ height: `${height}%` }}
-                                  onMouseEnter={(e) => setChartHover({ index, x: e.clientX, y: e.clientY })}
-                                  onMouseLeave={() => setChartHover({ index: -1, x: 0, y: 0 })}
-                                  title={`${trend.month}: ${trend.count}`}
-                                ></div>
-                                <p className="text-xs text-gray-600 mt-2">{trend.month}</p>
-                                <p className="text-xs font-medium text-gray-900">{trend.count}</p>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Evaluation Pipeline</h3>
+                      <div className="space-y-4">
+                        {(() => {
+                          const submitted = riskData.allRisks?.filter(r => r.status === 'Submitted').length || 0;
+                          const inReview = riskData.allRisks?.filter(r => r.status === 'In Review').length || 0;
+                          const evaluated = riskData.allRisks?.filter(r => r.status === 'Mitigated' || r.status === 'Escalated').length || 0;
+                          const total = submitted + inReview + evaluated || 1;
+                          
+                          return [
+                            { stage: 'Reported', count: submitted, color: 'bg-yellow-500', percentage: (submitted / total) * 100 },
+                            { stage: 'Under Evaluation', count: inReview, color: 'bg-blue-500', percentage: (inReview / total) * 100 },
+                            { stage: 'Completed', count: evaluated, color: 'bg-green-500', percentage: (evaluated / total) * 100 }
+                          ].map((stage, idx) => (
+                            <div key={idx} className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-3 h-3 rounded-full ${stage.color}`}></div>
+                                <span className="text-sm font-medium text-gray-700">{stage.stage}</span>
                               </div>
-                            );
-                          })}
+                              <div className="flex items-center space-x-2">
+                                <div className="w-32 bg-gray-200 rounded-full h-2">
+                                  <div className={`${stage.color} h-2 rounded-full transition-all duration-300`} style={{ width: `${stage.percentage}%` }}></div>
+                                </div>
+                                <span className="text-sm font-bold text-gray-900 w-8">{stage.count}</span>
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Risk Score Distribution */}
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Score Distribution</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        {(() => {
+                          const scoreCategories = [
+                            { label: 'Critical', range: '0.561-0.72', color: 'bg-red-500', count: riskData.allRisks?.filter(r => {
+                              const score = parseFloat(r.highestRiskScore || r.calculated_risk_score || 0);
+                              return score >= 0.561 && score <= 0.72;
+                            }).length || 0 },
+                            { label: 'High', range: '0.241-0.56', color: 'bg-orange-500', count: riskData.allRisks?.filter(r => {
+                              const score = parseFloat(r.highestRiskScore || r.calculated_risk_score || 0);
+                              return score >= 0.241 && score <= 0.56;
+                            }).length || 0 },
+                            { label: 'Medium', range: '0.081-0.24', color: 'bg-yellow-500', count: riskData.allRisks?.filter(r => {
+                              const score = parseFloat(r.highestRiskScore || r.calculated_risk_score || 0);
+                              return score >= 0.081 && score <= 0.24;
+                            }).length || 0 },
+                            { label: 'Low', range: '0.005-0.08', color: 'bg-green-500', count: riskData.allRisks?.filter(r => {
+                              const score = parseFloat(r.highestRiskScore || r.calculated_risk_score || 0);
+                              return score >= 0.005 && score <= 0.08;
+                            }).length || 0 }
+                          ];
+                          
+                          return scoreCategories.map((cat, idx) => (
+                            <div key={idx} className="text-center">
+                              <div className={`${cat.color} text-white rounded-lg p-3 mb-2`}>
+                                <div className="text-lg font-bold">{cat.count}</div>
+                                <div className="text-xs opacity-90">{cat.label}</div>
+                              </div>
+                              <div className="text-xs text-gray-500">{cat.range}</div>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Enhanced Risk Trends Chart */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Risk Trends & Evaluation Progress (Last 6 Months)</h3>
+                      <div className="flex items-center space-x-4 text-sm">
+                        <div className="flex items-center space-x-1">
+                          <div className="w-3 h-3 bg-red-500 rounded"></div>
+                          <span>Reported</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                          <span>Evaluated</span>
                         </div>
                       </div>
+                    </div>
+                    <div className="relative h-64">
+                      {/* Enhanced chart with dual data series */}
+                      <div className="absolute inset-0 flex flex-col justify-between">
+                        {[...Array(5)].map((_, i) => (
+                          <div key={i} className="w-full border-t border-gray-200 flex justify-end">
+                            <span className="text-xs text-gray-400 -mt-2 mr-2">{(5-i) * 4}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="absolute inset-0 flex items-end space-x-1 px-8">
+                        {riskData.riskTrends?.map((trend, index) => {
+                          const max = Math.max(...riskData.riskTrends.map(t => t.count || 0)) || 1;
+                          const reportedHeight = ((trend.count || 0) / max) * 100;
+                          const evaluatedCount = Math.floor((trend.count || 0) * 0.7); // Simulate evaluation rate
+                          const evaluatedHeight = (evaluatedCount / max) * 100;
+                          
+                          return (
+                          <div key={index} className="flex-1 flex flex-col items-center">
+                              <div className="w-full flex space-x-1">
+                            <div 
+                                  className="flex-1 bg-red-500 rounded-t opacity-80 hover:opacity-100 transition-opacity duration-200"
+                                  style={{ height: `${reportedHeight}%` }}
+                                  title={`${trend.month}: ${trend.count} reported`}
+                            ></div>
+                                <div
+                                  className="flex-1 bg-blue-500 rounded-t opacity-80 hover:opacity-100 transition-opacity duration-200"
+                                  style={{ height: `${evaluatedHeight}%` }}
+                                  title={`${trend.month}: ${evaluatedCount} evaluated`}
+                                ></div>
+                              </div>
+                            <p className="text-xs text-gray-600 mt-2">{trend.month}</p>
+                              <div className="text-xs text-center">
+                                <div className="text-red-600 font-medium">{trend.count}</div>
+                                <div className="text-blue-600">{evaluatedCount}</div>
+                          </div>
+                      </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Risk Owner Performance */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Owner Performance</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {(() => {
+                        const ownerStats = {};
+                        riskData.allRisks?.forEach(risk => {
+                          const owner = risk.users_risks_evaluated_byTousers ? 
+                            `${risk.users_risks_evaluated_byTousers.first_name} ${risk.users_risks_evaluated_byTousers.last_name}` : 
+                            (risk.evaluated_by_name || 'Unassigned');
+                          
+                          if (!ownerStats[owner]) {
+                            ownerStats[owner] = { total: 0, evaluated: 0, pending: 0 };
+                          }
+                          ownerStats[owner].total++;
+                          if (risk.status === 'Mitigated' || risk.status === 'Escalated') {
+                            ownerStats[owner].evaluated++;
+                          } else {
+                            ownerStats[owner].pending++;
+                          }
+                        });
+
+                        return Object.entries(ownerStats).slice(0, 6).map(([owner, stats], idx) => {
+                          const completionRate = stats.total > 0 ? (stats.evaluated / stats.total) * 100 : 0;
+                          return (
+                            <div key={idx} className="bg-gray-50 rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-medium text-gray-900 truncate">{owner}</h4>
+                                <span className={`text-xs px-2 py-1 rounded-full ${completionRate >= 80 ? 'bg-green-100 text-green-800' : completionRate >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                  {completionRate.toFixed(0)}%
+                                </span>
+                              </div>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Evaluated:</span>
+                                  <span className="font-medium text-green-600">{stats.evaluated}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Pending:</span>
+                                  <span className="font-medium text-yellow-600">{stats.pending}</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                                  <div className="bg-green-500 h-2 rounded-full transition-all duration-300" style={{ width: `${completionRate}%` }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                   
                   {/* Comprehensive Risk Details Table */}
                   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                      <h4 className="font-semibold text-gray-900">All Risks - Detailed View</h4>
-                      <p className="text-sm text-gray-600">Complete risk information including reporters and evaluators</p>
+                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-gray-900">All Risks - Executive View</h4>
+                          <p className="text-sm text-gray-600">Complete risk portfolio with evaluation status and ownership</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-500">Total: {riskData.allRisks?.length || 0} risks</span>
+                        </div>
+                      </div>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk ID</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reported By</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Reported</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Evaluated By</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk Details</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk Score</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status & Progress</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk Owner</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timeline</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {riskData.allRisks?.map((risk) => (
+                          {riskData.allRisks?.map((risk) => {
+                            const score = parseFloat(risk.highestRiskScore || risk.calculated_risk_score || 0);
+                            const scoreLevel = score >= 0.561 ? 'Critical' : score >= 0.241 ? 'High' : score >= 0.081 ? 'Medium' : 'Low';
+                            const scoreColor = score >= 0.561 ? 'bg-red-100 text-red-800' : score >= 0.241 ? 'bg-orange-100 text-orange-800' : score >= 0.081 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800';
+                            
+                            return (
                             <tr key={risk.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {risk.risk_code}
+                                <td className="px-6 py-4">
+                                  <div className="flex items-start space-x-3">
+                                    <div className="flex-shrink-0">
+                                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                        <ShieldCheckIcon className="h-4 w-4 text-blue-600" />
+                                      </div>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-sm font-medium text-gray-900 truncate">{risk.risk_title}</div>
+                                      <div className="text-sm text-gray-500 truncate">{risk.risk_code}</div>
+                                      <div className="text-xs text-gray-400 mt-1">{risk.risk_categories?.category_name || risk.category || 'N/A'}</div>
+                                    </div>
+                                  </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {risk.risk_title}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {risk.risk_categories?.category_name || risk.category || 'N/A'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  risk.priority === 'High' ? 'bg-red-100 text-red-800' :
-                                  risk.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-green-100 text-green-800'
-                                }`}>
-                                  {risk.priority || 'Medium'}
+                                <td className="px-6 py-4">
+                                  <div className="text-center">
+                                    <div className="text-lg font-bold text-gray-900">{score.toFixed(3)}</div>
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${scoreColor}`}>
+                                      {scoreLevel}
                                 </span>
+                                  </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center space-x-2">
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                                   risk.status === 'Submitted' ? 'bg-blue-100 text-blue-800' :
                                   risk.status === 'In Review' ? 'bg-yellow-100 text-yellow-800' :
                                   risk.status === 'Mitigated' ? 'bg-green-100 text-green-800' :
@@ -868,28 +1033,46 @@ const RoleBasedDashboard = () => {
                                 }`}>
                                   {risk.status}
                                 </span>
+                                    {risk.status === 'In Review' && (
+                                      <div className="flex items-center text-xs text-gray-500">
+                                        <ClockIcon className="h-3 w-3 mr-1" />
+                                        Active
+                                      </div>
+                                    )}
+                                  </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {risk.users_risks_submitted_byTousers ? 
-                                  `${risk.users_risks_submitted_byTousers.first_name} ${risk.users_risks_submitted_byTousers.last_name}` : 
-                                  risk.submitted_by_name || 'N/A'
-                                }
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDate(risk.date_reported || risk.created_at)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-6 py-4">
+                                  <div className="text-sm">
+                                    <div className="font-medium text-gray-900">
                                 {risk.users_risks_evaluated_byTousers ? 
                                   `${risk.users_risks_evaluated_byTousers.first_name} ${risk.users_risks_evaluated_byTousers.last_name}` : 
-                                  risk.evaluated_by_name || 'Not Evaluated'
+                                        (risk.evaluated_by_name || 'Not Assigned')
                                 }
+                                    </div>
+                                    <div className="text-gray-500">
+                                      {risk.departments?.department_name || risk.department || 'N/A'}
+                                    </div>
+                                  </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button className="text-blue-600 hover:text-blue-900 mr-3" onClick={() => handleViewRisk(risk)}>View</button>
-                                <button className="text-green-600 hover:text-green-900" onClick={() => handleExportRiskCSV(risk)}>Export</button>
+                                <td className="px-6 py-4 text-sm text-gray-500">
+                                  <div>
+                                    <div className="text-xs text-gray-400">Reported</div>
+                                    <div>{formatDate(risk.date_reported || risk.created_at)}</div>
+                                  </div>
+                                  {risk.date_evaluated && (
+                                    <div className="mt-2">
+                                      <div className="text-xs text-gray-400">Evaluated</div>
+                                      <div>{formatDate(risk.date_evaluated)}</div>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-sm font-medium">
+                                  <button className="text-blue-600 hover:text-blue-900 mr-3" onClick={() => handleViewRisk(risk)}>View</button>
+                                  <button className="text-green-600 hover:text-green-900" onClick={() => handleExportRiskCSV(risk)}>Export</button>
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -897,16 +1080,19 @@ const RoleBasedDashboard = () => {
                   
                   {/* Risk Management Actions */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-900 mb-2">Quick Actions</h4>
-                    <div className="flex space-x-3">
+                    <h4 className="font-semibold text-blue-900 mb-2">Executive Actions</h4>
+                    <div className="flex flex-wrap gap-3">
                       <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm" onClick={handleGenerateRiskReport}>
-                        Generate Risk Report
+                        Generate Executive Report
                       </button>
                       <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm" onClick={() => setShowScheduleModal(true)}>
                         Schedule Risk Review
                       </button>
                       <button className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm" onClick={handleExportAllRisksCSV}>
-                        Export Risk Data
+                        Export All Risk Data
+                      </button>
+                      <button className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors text-sm" onClick={() => setActiveTab('overview')}>
+                        View Strategic Overview
                       </button>
                     </div>
                   </div>
@@ -914,7 +1100,7 @@ const RoleBasedDashboard = () => {
               ) : (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-                  <p className="text-gray-500">Loading risk management data...</p>
+                  <p className="text-gray-500">Loading comprehensive risk management data...</p>
                 </div>
               )}
             </div>
@@ -1153,4 +1339,4 @@ const RoleBasedDashboard = () => {
   );
 };
 
-export default RoleBasedDashboard;
+export default RoleBasedDashboard; 

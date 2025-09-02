@@ -89,13 +89,13 @@ const RiskForm = ({ risk, onSubmit, onCancel, isModal = true, loading = false, c
     }
   }, [risk]);
 
-  // Risk matrix definitions from manual
+  // Risk matrix definitions from manual (updated scale 0.1 to 0.9)
   const likelihoodOptions = [
-    { value: 0.05, label: '0.05 - Very Low', description: 'Historically, the event has occurred very infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were the event to occur over the course of the project, the event would be considered exceptional.' },
-    { value: 0.1, label: '0.1 - Low', description: 'Historically, the event has been known to occur infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered remarkable.' },
-    { value: 0.2, label: '0.2 - Moderate', description: 'Historically, the event has been known to occur, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, it is plausible for this event to occur over the course of this project.' },
-    { value: 0.4, label: '0.4 - High', description: 'Historically, the event has been known to occur frequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered unremarkable.' },
-    { value: 0.8, label: '0.8 - Very High', description: 'Historically, the event has been known to occur very frequently, based on comparisons with similar projects conducted under similar conditions. Based on current project circumstances, the event is expected to occur over the course of this project.' }
+    { value: 0.1, label: '0.1 - Very Low', description: 'Historically, the event has occurred very infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were the event to occur over the course of the project, the event would be considered exceptional.' },
+    { value: 0.3, label: '0.3 - Low', description: 'Historically, the event has been known to occur infrequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered remarkable.' },
+    { value: 0.5, label: '0.5 - Moderate', description: 'Historically, the event has been known to occur, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, it is plausible for this event to occur over the course of this project.' },
+    { value: 0.7, label: '0.7 - High', description: 'Historically, the event has been known to occur frequently, based on comparisons with similar projects conducted under similar conditions. Based upon current project circumstances, were it to occur over the course of this project, the event would be considered unremarkable.' },
+    { value: 0.9, label: '0.9 - Very High', description: 'Historically, the event has been known to occur very frequently, based on comparisons with similar projects conducted under similar conditions. Based on current project circumstances, the event is expected to occur over the course of this project.' }
   ];
 
   const impactOptions = [
@@ -173,15 +173,15 @@ const RiskForm = ({ risk, onSubmit, onCancel, isModal = true, loading = false, c
     }
   };
 
-  // Calculate risk score and level based on manual matrix
+  // Calculate risk score and level based on manual matrix (updated for 0.1-0.9 likelihood scale)
   const calculateRiskScore = (likelihood, impact) => {
     const score = likelihood * impact;
     let level = '';
-    if (score >= 0.01 && score <= 0.05) level = 'Low';
-    else if (score >= 0.06 && score <= 0.15) level = 'Medium';
-    else if (score >= 0.16 && score <= 0.35) level = 'High';
-    else if (score >= 0.36 && score <= 0.72) level = 'Critical';
-    return { score: score.toFixed(2), level };
+    if (score >= 0.005 && score <= 0.08) level = 'Low';
+    else if (score >= 0.081 && score <= 0.24) level = 'Medium';
+    else if (score >= 0.241 && score <= 0.56) level = 'High';
+    else if (score >= 0.561 && score <= 0.72) level = 'Critical';
+    return { score: score.toFixed(3), level };
   };
 
   // Calculate risk score for selected category

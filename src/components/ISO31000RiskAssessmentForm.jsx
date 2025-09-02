@@ -12,7 +12,7 @@ import {
 	FlagIcon
 } from '@heroicons/react/24/outline';
 
-const ISO31000RiskAssessmentForm = ({ risk, onSubmit, onCancel, loading = false, users = [] }) => {
+const ISO31000RiskAssessmentForm = ({ risk, onSubmit, onCancel, loading = false, users = [], initialData = {} }) => {
 	const [formData, setFormData] = useState({
 		// Risk Identification
 		riskId: risk?.risk_code || '',
@@ -20,10 +20,10 @@ const ISO31000RiskAssessmentForm = ({ risk, onSubmit, onCancel, loading = false,
 		riskDescription: risk?.risk_description || '',
 		
 		// Risk Owner Information
-		riskOwnerName: '',
-		riskOwnerTitle: '',
-		riskOwnerDepartment: '',
-		riskOwnerContact: '',
+		riskOwnerName: initialData.riskOwnerName || '',
+		riskOwnerTitle: initialData.riskOwnerTitle || '',
+		riskOwnerDepartment: initialData.riskOwnerDepartment || '',
+		riskOwnerContact: initialData.riskOwnerContact || '',
 		
 		// Risk Assessment Summary
 		assessmentDate: new Date().toISOString().split('T')[0],
@@ -281,25 +281,41 @@ const ISO31000RiskAssessmentForm = ({ risk, onSubmit, onCancel, loading = false,
 		e.preventDefault();
 		
 		// Validate required fields
-		if (!formData.riskOwnerName || !formData.assessmentDate || !formData.treatmentPlan) {
-			alert('Please fill in all required fields marked with *');
+		if (!formData.riskOwnerName || !formData.assessmentDate || !formData.treatmentStrategy || !formData.treatmentPlan) {
+			alert('Please fill in all required fields marked with *: Risk Owner Name, Assessment Date, Treatment Strategy, and Treatment Plan');
 			return;
 		}
 		
+		// Calculate completion percentage
+		const filledCount = allRequired.reduce((acc, key) => acc + (isKeySatisfied(key) ? 1 : 0), 0);
+		const completionPct = allRequired.length === 0 ? 0 : Math.round((filledCount / allRequired.length) * 100);
+		
+		// Auto-update status based on completion and treatment strategy
+		let autoStatus = formData.statusUpdate || 'In Review';
+		if (completionPct >= 95 && formData.treatmentStrategy) {
+			if (formData.treatmentStrategy.includes('Avoidance') || formData.treatmentStrategy.includes('Reduction') || formData.treatmentStrategy.includes('Transfer')) {
+				autoStatus = 'Mitigated';
+			} else if (formData.escalationRequired) {
+				autoStatus = 'Escalated';
+			}
+		}
+
 		// Normalize payload keys expected by backend submit handler
 		const normalized = {
 			...formData,
 			assessmentNotes: formData.assessmentNotes,
 			severityUpdate: formData.severityUpdate,
-			statusUpdate: formData.statusUpdate,
+			statusUpdate: autoStatus,
 			categoryUpdate: formData.categoryUpdate,
+			treatmentStrategy: formData.treatmentStrategy,
 			treatmentPlan: formData.treatmentPlan,
 			reviewFrequency: formData.reviewFrequency,
 			nextReviewDate: formData.nextReviewDate,
 			keyPerformanceIndicators: formData.keyPerformanceIndicators,
 			escalationRequired: formData.escalationRequired,
 			escalationReason: formData.escalationReason,
-			actionItems: formData.actionItems
+			actionItems: formData.actionItems,
+			completionPercentage: completionPct
 		};
 		
 		onSubmit(normalized);
