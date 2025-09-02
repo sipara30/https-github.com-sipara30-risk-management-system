@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RiskForm from './RiskForm';
-import SimpleRiskReportForm from './SimpleRiskReportForm';
 import ISO31000RiskAssessmentForm from './ISO31000RiskAssessmentForm';
 import RiskWorkflowManager from './RiskWorkflowManager';
 import {
@@ -14,8 +13,7 @@ import {
   EyeIcon,
   PencilIcon,
   UserIcon,
-  ChartBarIcon,
-  PlusIcon
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 
 const RiskOwnerDashboard = () => {
@@ -26,7 +24,7 @@ const RiskOwnerDashboard = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('submit-risk');
+  const [activeTab, setActiveTab] = useState('overview');
   
   // State for risks data
   const [risks, setRisks] = useState([]);
@@ -81,11 +79,6 @@ const RiskOwnerDashboard = () => {
   // State for selected risk and modal
   const [selectedRisk, setSelectedRisk] = useState(null);
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
-  
-  // State for risk form
-  const [submittingRisk, setSubmittingRisk] = useState(false);
-  const [submitRiskSuccess, setSubmitRiskSuccess] = useState(false);
-  const [submitRiskError, setSubmitRiskError] = useState('');
   
   // Reference data
   const [departments, setDepartments] = useState([]);
@@ -289,7 +282,7 @@ const RiskOwnerDashboard = () => {
         console.log('🔧 Using mock data for testing');
         setDepartments([
           { id: 1, department_name: 'Administration', department_code: 'ADMIN' },
-          { id: 2, department_name: 'IT', department_code: 'IT' },
+          { id: 2, department_name: 'IT', department_code: 'It' },
           { id: 3, department_name: 'Finance', department_code: 'FIN' },
           { id: 4, department_name: 'Operations', department_code: 'OPS' }
         ]);
@@ -441,7 +434,12 @@ const RiskOwnerDashboard = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setRisks(data);
+        const myUserId = user?.id;
+        const assignedOnly = Array.isArray(data) ? data.filter(r => {
+          const ownerId = r.risk_owner_id ?? r.ownerId ?? r.assigned_owner_id;
+          return String(ownerId ?? '') === String(myUserId ?? '');
+        }) : [];
+        setRisks(assignedOnly);
       } else {
         console.error('Failed to load risks');
       }
@@ -453,6 +451,11 @@ const RiskOwnerDashboard = () => {
   };
 
   const openEvaluationModal = (risk) => {
+    const ownerId = risk.risk_owner_id ?? risk.ownerId ?? risk.assigned_owner_id;
+    if (String(ownerId ?? '') !== String(user?.id ?? '')) {
+      alert('You are not assigned as the owner of this risk.');
+      return;
+    }
     setSelectedRisk(risk);
     setEvaluationForm({
       title: risk.risk_title || '',
@@ -651,66 +654,7 @@ const RiskOwnerDashboard = () => {
       console.error('❌ Workflow status update error:', error);
     }
   };
-
-  const handleRiskSubmit = async (riskData) => {
-    try {
-      setSubmittingRisk(true);
-      setSubmitRiskError('');
-      setSubmitRiskSuccess(false);
-
-      // Prepare the complete risk data with additional fields
-      const completeRiskData = {
-        ...riskData,
-        date_reported: new Date().toISOString().split('T')[0],
-        submitted_by: user?.id,
-        status: 'Submitted',
-        workflow_step: 1,
-        workflow_status: {
-          step1_completed: true,
-          step2_completed: false,
-          step3_completed: false,
-          step4_completed: false,
-          step5_completed: false,
-          step6_completed: false,
-          last_updated: new Date().toISOString()
-        }
-      };
-
-      console.log('🔄 Submitting risk data with workflow:', completeRiskData);
-
-      const response = await fetch('http://localhost:3001/api/risks', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(completeRiskData)
-      });
-
-      if (response.ok) {
-        setSubmitRiskSuccess(true);
-        setSubmitRiskError('');
-        
-        console.log('✅ Risk submitted successfully with workflow step 1');
-        
-        // Clear form and show success message
-        setTimeout(() => {
-          setSubmitRiskSuccess(false);
-          setActiveTab('workflow');
-        }, 2000);
-      } else {
-        const errorData = await response.json();
-        console.error('❌ Risk submission failed:', errorData);
-        setSubmitRiskError(errorData.error || 'Failed to submit risk');
-      }
-    } catch (error) {
-      console.error('❌ Risk submission error:', error);
-      setSubmitRiskError('Failed to submit risk. Please try again.');
-    } finally {
-      setSubmittingRisk(false);
-    }
-  };
-
+  
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
@@ -850,17 +794,6 @@ const RiskOwnerDashboard = () => {
           {/* Navigation Tabs */}
           <nav className="flex space-x-8">
             <button
-              onClick={() => setActiveTab('submit-risk')}
-              className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'submit-risk'
-                  ? 'border-orange-600 text-orange-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <PlusIcon className="h-5 w-5" />
-              <span>Submit Risk</span>
-            </button>
-            <button
               onClick={() => setActiveTab('pending-risks')}
               className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'pending-risks'
@@ -915,40 +848,6 @@ const RiskOwnerDashboard = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* Submit Risk Tab */}
-        {activeTab === 'submit-risk' && (
-          <div className="space-y-6">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Submit New Risk Report</h2>
-              
-              {submitRiskSuccess && (
-                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
-                    <span className="text-green-800">Risk submitted successfully!</span>
-                  </div>
-                </div>
-              )}
-              
-              {submitRiskError && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-2" />
-                    <span className="text-red-800">{submitRiskError}</span>
-                  </div>
-                </div>
-              )}
-              
-              <SimpleRiskReportForm
-                loading={submittingRisk}
-                departments={departments || []}
-                onSubmit={handleRiskSubmit}
-                onCancel={() => setActiveTab('overview')}
-              />
-            </div>
-          </div>
-        )}
-
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
@@ -1054,7 +953,9 @@ const RiskOwnerDashboard = () => {
                         <div className="flex space-x-2">
                           <button
                             onClick={() => openEvaluationModal(risk)}
-                            className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors text-sm"
+                            disabled={String((risk.risk_owner_id ?? risk.ownerId ?? risk.assigned_owner_id) ?? '') !== String(user?.id ?? '')}
+                            className={`px-4 py-2 rounded-md transition-colors text-sm ${String((risk.risk_owner_id ?? risk.ownerId ?? risk.assigned_owner_id) ?? '') !== String(user?.id ?? '') ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-orange-600 text-white hover:bg-orange-700'}`}
+                            title={String((risk.risk_owner_id ?? risk.ownerId ?? risk.assigned_owner_id) ?? '') !== String(user?.id ?? '') ? 'Only the assigned owner can evaluate this risk' : 'Evaluate this risk'}
                           >
                             <PencilIcon className="h-4 w-4 mr-1 inline" />
                             Evaluate

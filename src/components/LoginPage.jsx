@@ -269,9 +269,9 @@ const LoginPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900">Government Access</h2>
+          <h2 className="text-3xl font-bold text-gray-900">ECWC Access</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Sign in to Government Risk Management System
+            Sign in to ECWC Risk Management System
           </p>
         </div>
 

@@ -140,7 +140,7 @@ const RegisterPage = () => {
           </div>
                      <h2 className="text-3xl font-bold text-gray-900">Request Access</h2>
            <p className="mt-2 text-sm text-gray-600">
-             Request access to Government Risk Management System
+             Request access to ECWC Risk Management System
            </p>
         </div>
 

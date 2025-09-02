@@ -32,6 +32,17 @@ const RoleBasedDashboard = () => {
   const [reportsData, setReportsData] = useState(null);
   const [systemHealthData, setSystemHealthData] = useState(null);
   
+  // UI state: risk detail modal & tooltip for charts
+  const [selectedRisk, setSelectedRisk] = useState(null);
+  const [showRiskModal, setShowRiskModal] = useState(false);
+  const [chartHover, setChartHover] = useState({ index: -1, x: 0, y: 0 });
+  
+  // Quick actions modals
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [reviewDateTime, setReviewDateTime] = useState('');
+  const [reviewNotes, setReviewNotes] = useState('');
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -297,6 +308,95 @@ const RoleBasedDashboard = () => {
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
   };
+  
+  const handleViewRisk = (risk) => {
+    setSelectedRisk(risk);
+    setShowRiskModal(true);
+  };
+  
+  const handleExportRiskCSV = (risk) => {
+    const headers = ['Risk ID','Title','Category','Priority','Status','Reported By','Date Reported','Evaluated By'];
+    const row = [
+      risk.risk_code,
+      risk.risk_title,
+      risk.risk_categories?.category_name || risk.category || 'N/A',
+      risk.priority,
+      risk.status,
+      risk.users_risks_submitted_byTousers ? `${risk.users_risks_submitted_byTousers.first_name} ${risk.users_risks_submitted_byTousers.last_name}` : (risk.submitted_by_name || 'N/A'),
+      new Date(risk.date_reported || risk.created_at).toISOString(),
+      risk.users_risks_evaluated_byTousers ? `${risk.users_risks_evaluated_byTousers.first_name} ${risk.users_risks_evaluated_byTousers.last_name}` : (risk.evaluated_by_name || 'Not Evaluated')
+    ];
+    const csv = [headers.join(','), row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${risk.risk_code || 'risk'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportAllRisksCSV = () => {
+    if (!riskData?.allRisks?.length) return;
+    const headers = ['Risk ID','Title','Category','Priority','Status','Reported By','Date Reported','Evaluated By'];
+    const rows = riskData.allRisks.map(risk => [
+      risk.risk_code,
+      risk.risk_title,
+      risk.risk_categories?.category_name || risk.category || 'N/A',
+      risk.priority,
+      risk.status,
+      risk.users_risks_submitted_byTousers ? `${risk.users_risks_submitted_byTousers.first_name} ${risk.users_risks_submitted_byTousers.last_name}` : (risk.submitted_by_name || 'N/A'),
+      new Date(risk.date_reported || risk.created_at).toISOString(),
+      risk.users_risks_evaluated_byTousers ? `${risk.users_risks_evaluated_byTousers.first_name} ${risk.users_risks_evaluated_byTousers.last_name}` : (risk.evaluated_by_name || 'Not Evaluated')
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'risks_export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  
+  const handleGenerateRiskReport = () => {
+    setShowReportModal(true);
+  };
+  
+  const printReport = () => {
+    const printContent = document.getElementById('ceo-risk-report');
+    if (!printContent) return;
+    const win = window.open('', '_blank');
+    win.document.write(`<html><head><title>Risk Report</title><style>body{font-family:Inter,system-ui,Arial;padding:24px} h1{margin:0 0 8px} .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px} .card{border:1px solid #e5e7eb;border-radius:8px;padding:12px} table{width:100%;border-collapse:collapse;margin-top:16px} th,td{border:1px solid #e5e7eb;padding:8px;font-size:12px;text-align:left}</style></head><body>`);
+    win.document.write(printContent.innerHTML);
+    win.document.write('</body></html>');
+    win.document.close();
+    win.focus();
+    win.print();
+    win.close();
+  };
+  
+  const handleScheduleReview = (e) => {
+    e?.preventDefault?.();
+    if (!reviewDateTime) return setShowScheduleModal(false);
+    // Build a simple ICS invite
+    const dt = new Date(reviewDateTime);
+    const dtStr = dt.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const dtEnd = new Date(dt.getTime() + 60*60*1000); // +1 hour
+    const dtEndStr = dtEnd.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const description = (reviewNotes || 'Risk Review Meeting').replace(/\n/g, '\\n');
+    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//ECWC//RiskManagement//EN\nBEGIN:VEVENT\nUID:${Date.now()}@ecwc\nDTSTAMP:${dtStr}\nDTSTART:${dtStr}\nDTEND:${dtEndStr}\nSUMMARY:Risk Review\nDESCRIPTION:${description}\nEND:VEVENT\nEND:VCALENDAR`;
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'risk-review.ics';
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowScheduleModal(false);
+    setReviewDateTime('');
+    setReviewNotes('');
+  };
 
   if (loading) {
     return (
@@ -404,6 +504,20 @@ const RoleBasedDashboard = () => {
               
               {overviewData ? (
                 <>
+                  {/* High-level Alerts */}
+                  {(overviewData.statistics?.highPriorityRisks > 0 || overviewData.statistics?.escalatedRisks > 0) && (
+                    <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+                      <div className="flex items-center">
+                        <ExclamationTriangleIcon className="h-6 w-6 text-red-600 mr-3" />
+                        <div className="flex-1">
+                          <p className="text-red-800 font-semibold">Attention required</p>
+                          <p className="text-sm text-red-700">{overviewData.statistics?.highPriorityRisks || 0} high-priority risks and {overviewData.statistics?.escalatedRisks || 0} escalated risks need review.</p>
+                        </div>
+                        <button className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm" onClick={() => setActiveTab('risk_management')}>View Risks</button>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     {/* Risk Statistics Cards */}
                     <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-6 text-white">
@@ -447,6 +561,95 @@ const RoleBasedDashboard = () => {
                     </div>
                   </div>
                   
+                  {/* Executive Analytics */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    {/* Status Distribution */}
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Status Distribution</h3>
+                      <div className="flex items-end space-x-3 h-40">
+                        {overviewData.riskTrends?.byStatus?.map((s, idx) => {
+                          const max = Math.max(...overviewData.riskTrends.byStatus.map(x => x.count || 0));
+                          const height = max > 0 ? (s.count / max) * 100 : 0;
+                          const color = s.status === 'Escalated' ? 'bg-red-500' : s.status === 'Mitigated' ? 'bg-green-500' : s.status === 'In Review' ? 'bg-yellow-500' : 'bg-blue-500';
+                          return (
+                            <div key={idx} className="flex-1 flex flex-col items-center">
+                              <div className={`${color} w-full rounded-t`} style={{ height: `${height}%` }}></div>
+                              <p className="text-xs mt-2 text-gray-600">{s.status}</p>
+                              <p className="text-xs font-medium text-gray-900">{s.count}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* Priority Distribution Donut */}
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Priority Mix</h3>
+                      {(() => {
+                        const high = overviewData.statistics?.highPriorityRisks || 0;
+                        const med = overviewData.statistics?.mediumPriorityRisks || 0;
+                        const low = overviewData.statistics?.lowPriorityRisks || 0;
+                        const total = high + med + low || 1;
+                        const highPct = (high / total) * 100;
+                        const medPct = (med / total) * 100;
+                        const lowPct = 100 - highPct - medPct;
+                        return (
+                          <div className="flex items-center">
+                            <svg viewBox="0 0 36 36" className="w-28 h-28 -rotate-90">
+                              <circle cx="18" cy="18" r="16" fill="transparent" stroke="#e5e7eb" strokeWidth="4"></circle>
+                              <circle cx="18" cy="18" r="16" fill="transparent" stroke="#ef4444" strokeWidth="4" strokeDasharray={`${highPct} ${100 - highPct}`} strokeDashoffset="0"></circle>
+                              <circle cx="18" cy="18" r="16" fill="transparent" stroke="#f59e0b" strokeWidth="4" strokeDasharray={`${medPct} ${100 - medPct}`} strokeDashoffset={`-${highPct}`}></circle>
+                              <circle cx="18" cy="18" r="16" fill="transparent" stroke="#10b981" strokeWidth="4" strokeDasharray={`${lowPct} ${100 - lowPct}`} strokeDashoffset={`-${highPct + medPct}`}></circle>
+                            </svg>
+                            <div className="ml-4 space-y-1 text-sm">
+                              <div className="flex items-center"><span className="w-2 h-2 rounded-sm bg-red-500 mr-2"></span>High: {high}</div>
+                              <div className="flex items-center"><span className="w-2 h-2 rounded-sm bg-yellow-500 mr-2"></span>Medium: {med}</div>
+                              <div className="flex items-center"><span className="w-2 h-2 rounded-sm bg-green-500 mr-2"></span>Low: {low}</div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    
+                    {/* Risks by Department */}
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Departments by Risk</h3>
+                      <div className="space-y-2">
+                        {overviewData.riskTrends?.byDepartment?.slice(0, 6).map((d, idx) => {
+                          const max = Math.max(...overviewData.riskTrends.byDepartment.map(x => x.count || 0));
+                          const width = max > 0 ? (d.count / max) * 100 : 0;
+                          return (
+                            <div key={idx}>
+                              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                <span>{d.department}</span>
+                                <span className="font-medium text-gray-900">{d.count}</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded h-2">
+                                <div className="bg-blue-600 h-2 rounded" style={{ width: `${width}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* System Statistics */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <p className="text-sm text-gray-500">Departments</p>
+                      <p className="text-2xl font-bold text-gray-900">{overviewData.statistics?.totalDepartments || 0}</p>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <p className="text-sm text-gray-500">Users</p>
+                      <p className="text-2xl font-bold text-gray-900">{overviewData.statistics?.totalUsers || 0}</p>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <p className="text-sm text-gray-500">Active Risks (non-mitigated)</p>
+                      <p className="text-2xl font-bold text-gray-900">{overviewData.riskOverview?.riskExposure || 0}</p>
+                    </div>
+                  </div>
+                  
                   {/* Recent Risk Activity */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Risk Activity</h3>
@@ -461,7 +664,7 @@ const RoleBasedDashboard = () => {
                                 </div>
                                 <div>
                                   <p className="font-medium text-gray-900">{activity.title}</p>
-                                                                  <p className="text-sm text-gray-500">
+                                  <p className="text-sm text-gray-500">
                                   {activity.category || 'N/A'} • {activity.department || 'N/A'}
                                 </p>
                                   <p className="text-xs text-gray-400">
@@ -564,17 +767,32 @@ const RoleBasedDashboard = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Trends (Last 6 Months)</h3>
                     <div className="bg-gray-50 rounded-lg p-6">
-                      <div className="flex items-end space-x-2 h-32">
-                        {riskData.riskTrends?.map((trend, index) => (
-                          <div key={index} className="flex-1 flex flex-col items-center">
-                            <div 
-                              className="w-full bg-green-500 rounded-t"
-                              style={{ height: `${(trend.count / 20) * 100}%` }}
-                            ></div>
-                            <p className="text-xs text-gray-600 mt-2">{trend.month}</p>
-                            <p className="text-xs font-medium text-gray-900">{trend.count}</p>
-                          </div>
-                        ))}
+                      <div className="relative h-56">
+                        {/* Gridlines */}
+                        <div className="absolute inset-0 flex flex-col justify-between">
+                          {[...Array(4)].map((_, i) => (
+                            <div key={i} className="w-full border-t border-gray-200"></div>
+                          ))}
+                        </div>
+                        <div className="absolute inset-0 flex items-end space-x-3 px-2">
+                          {riskData.riskTrends?.map((trend, index) => {
+                            const max = Math.max(...riskData.riskTrends.map(t => t.count || 0)) || 1;
+                            const height = (trend.count / max) * 100;
+                            return (
+                              <div key={index} className="flex-1 flex flex-col items-center">
+                                <div
+                                  className={`w-full rounded-t transition-all duration-200 ${index === chartHover.index ? 'bg-green-600' : 'bg-green-500'}`}
+                                  style={{ height: `${height}%` }}
+                                  onMouseEnter={(e) => setChartHover({ index, x: e.clientX, y: e.clientY })}
+                                  onMouseLeave={() => setChartHover({ index: -1, x: 0, y: 0 })}
+                                  title={`${trend.month}: ${trend.count}`}
+                                ></div>
+                                <p className="text-xs text-gray-600 mt-2">{trend.month}</p>
+                                <p className="text-xs font-medium text-gray-900">{trend.count}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -648,8 +866,8 @@ const RoleBasedDashboard = () => {
                                 }
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                                <button className="text-green-600 hover:text-green-900">Export</button>
+                                <button className="text-blue-600 hover:text-blue-900 mr-3" onClick={() => handleViewRisk(risk)}>View</button>
+                                <button className="text-green-600 hover:text-green-900" onClick={() => handleExportRiskCSV(risk)}>Export</button>
                               </td>
                             </tr>
                           ))}
@@ -662,13 +880,13 @@ const RoleBasedDashboard = () => {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="font-semibold text-blue-900 mb-2">Quick Actions</h4>
                     <div className="flex space-x-3">
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
+                      <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm" onClick={handleGenerateRiskReport}>
                         Generate Risk Report
                       </button>
-                      <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
+                      <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm" onClick={() => setShowScheduleModal(true)}>
                         Schedule Risk Review
                       </button>
-                      <button className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm">
+                      <button className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm" onClick={handleExportAllRisksCSV}>
                         Export Risk Data
                       </button>
                     </div>
@@ -865,8 +1083,112 @@ const RoleBasedDashboard = () => {
           </div>
         )}
       </main>
+      
+      {/* Risk Detail Modal */}
+      {showRiskModal && selectedRisk && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">{selectedRisk.risk_title}</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowRiskModal(false)}>Close</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500">Risk ID</p>
+                <p className="font-medium">{selectedRisk.risk_code}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Category</p>
+                <p className="font-medium">{selectedRisk.risk_categories?.category_name || selectedRisk.category || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Priority</p>
+                <p className="font-medium">{selectedRisk.priority}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Status</p>
+                <p className="font-medium">{selectedRisk.status}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Reported By</p>
+                <p className="font-medium">{selectedRisk.users_risks_submitted_byTousers ? `${selectedRisk.users_risks_submitted_byTousers.first_name} ${selectedRisk.users_risks_submitted_byTousers.last_name}` : (selectedRisk.submitted_by_name || 'N/A')}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Date Reported</p>
+                <p className="font-medium">{formatDate(selectedRisk.date_reported || selectedRisk.created_at)}</p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-gray-500">Description</p>
+                <p className="font-medium">{selectedRisk.risk_description || '—'}</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end space-x-3">
+              <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" onClick={() => handleExportRiskCSV(selectedRisk)}>Export CSV</button>
+              <button className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" onClick={() => setShowRiskModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Executive Risk Report</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowReportModal(false)}>Close</button>
+            </div>
+            <div id="ceo-risk-report">
+              <h1>Executive Risk Report</h1>
+              <p>Date: {new Date().toLocaleString()}</p>
+              <div className="grid">
+                <div className="card"><div>Total Risks</div><strong>{riskData?.totalRisks}</strong></div>
+                <div className="card"><div>High Risks</div><strong>{riskData?.highRisks}</strong></div>
+                <div className="card"><div>Medium Risks</div><strong>{riskData?.mediumRisks}</strong></div>
+                <div className="card"><div>Low Risks</div><strong>{riskData?.lowRisks}</strong></div>
+              </div>
+              <table>
+                <thead><tr><th>Risk ID</th><th>Title</th><th>Category</th><th>Priority</th><th>Status</th><th>Date</th></tr></thead>
+                <tbody>
+                  {riskData?.allRisks?.slice(0, 50).map(r => (
+                    <tr key={r.id}>
+                      <td>{r.risk_code}</td>
+                      <td>{r.risk_title}</td>
+                      <td>{r.risk_categories?.category_name || r.category || 'N/A'}</td>
+                      <td>{r.priority}</td>
+                      <td>{r.status}</td>
+                      <td>{new Date(r.date_reported || r.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-6 flex justify-end space-x-3">
+              <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" onClick={printReport}>Print / Save PDF</button>
+              <button className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" onClick={() => setShowReportModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Schedule Review Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <form className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onSubmit={handleScheduleReview}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Schedule Risk Review</h3>
+            <label className="block text-sm text-gray-700 mb-1">Date & Time</label>
+            <input type="datetime-local" className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3" value={reviewDateTime} onChange={(e) => setReviewDateTime(e.target.value)} required />
+            <label className="block text-sm text-gray-700 mb-1">Notes</label>
+            <textarea className="w-full border border-gray-300 rounded-md px-3 py-2 mb-4" rows="3" placeholder="Agenda, attendees, context..." value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} />
+            <div className="flex justify-end space-x-3">
+              <button type="button" className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" onClick={() => setShowScheduleModal(false)}>Cancel</button>
+              <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Create Calendar Invite</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };
 
-export default RoleBasedDashboard; 
+export default RoleBasedDashboard;

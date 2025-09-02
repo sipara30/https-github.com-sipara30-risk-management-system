@@ -9,12 +9,10 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center mr-3">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">ECWC Risk Management</h1>
+                <p className="text-xs text-gray-500 -mt-1">Ethiopian Construction Works Corporation</p>
               </div>
-                             <h1 className="text-2xl font-bold text-gray-900">Government Risk Management</h1>
             </div>
             <div className="flex items-center space-x-4">
               <Link
@@ -40,21 +38,21 @@ const LandingPage = () => {
           <div className="relative z-10 pb-8 sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
             <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
               <div className="sm:text-center lg:text-left">
-                                 <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
-                   <span className="block xl:inline">Government</span>{' '}
-                   <span className="block text-primary xl:inline">Risk Management</span>
-                 </h1>
-                 <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
-                   Official government risk assessment, monitoring, and mitigation platform. 
-                   Secure, compliant, and designed for public sector operations and accountability.
-                 </p>
+                <img src="/ecwc-logo.jpg" alt="ECWC" className="mx-auto lg:mx-0 w-24 h-24 md:w-28 md:h-28 object-contain mb-4" />
+                <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+                  <span className="block xl:inline">Ethiopian Construction Works Corporation</span>{' '}
+                  <span className="block text-primary xl:inline"> Risk Management</span>
+                </h1>
+                <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
+                  Official ECWC platform for risk assessment, monitoring, and mitigation. Secure and compliant for corporate operations.
+                </p>
                 <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
                   <div className="rounded-md shadow">
                     <Link
                       to="/register"
                       className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-black transition-colors md:py-4 md:text-lg md:px-10"
                     >
-                                             Access System
+                      Access System
                     </Link>
                   </div>
                   <div className="mt-3 sm:mt-0 sm:ml-3">
@@ -71,7 +69,7 @@ const LandingPage = () => {
           </div>
         </div>
         <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
-          <div className="h-56 w-full bg-gradient-to-r from-primary to-blue-600 sm:h-72 md:h-96 lg:w-full lg:h-full rounded-l-3xl"></div>
+          <img src="/landing.png" alt="Landing" className="h-56 w-full object-cover sm:h-72 md:h-96 lg:w-full lg:h-full rounded-l-3xl" />
         </div>
       </div>
 
@@ -79,13 +77,13 @@ const LandingPage = () => {
       <div className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="lg:text-center">
-                         <h2 className="text-base text-primary font-semibold tracking-wide uppercase">Government Features</h2>
-             <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-               Official government risk management platform
-             </p>
-             <p className="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
-               Secure, compliant platform designed for public sector operations and accountability.
-             </p>
+            <h2 className="text-base text-primary font-semibold tracking-wide uppercase">ECWC Features</h2>
+            <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+              Enterprise risk management platform for ECWC
+            </p>
+            <p className="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
+              Secure, scalable platform designed for construction enterprise operations and accountability.
+            </p>
           </div>
 
           <div className="mt-10">
@@ -145,19 +143,19 @@ const LandingPage = () => {
       {/* CTA Section */}
       <div className="bg-primary">
         <div className="max-w-2xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
-                     <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-             <span className="block">Government Risk Management</span>
-             <span className="block">Secure • Compliant • Accountable</span>
-           </h2>
-           <p className="mt-4 text-lg leading-6 text-blue-100">
-             Official platform for government risk assessment and mitigation operations.
-           </p>
-           <Link
-             to="/register"
-             className="mt-8 w-full inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-primary bg-white hover:bg-gray-50 transition-colors sm:w-auto"
-           >
-             Request Access
-           </Link>
+          <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
+            <span className="block">ECWC Risk Management</span>
+            <span className="block">Secure • Compliant • Accountable</span>
+          </h2>
+          <p className="mt-4 text-lg leading-6 text-blue-100">
+            Official platform for risk assessment and mitigation operations.
+          </p>
+          <Link
+            to="/register"
+            className="mt-8 w-full inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-primary bg-white hover:bg-gray-50 transition-colors sm:w-auto"
+          >
+            Request Access
+          </Link>
         </div>
       </div>
 
@@ -166,17 +164,13 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8">
           <div className="xl:grid xl:grid-cols-3 xl:gap-8">
             <div className="space-y-8 xl:col-span-1">
-                             <div className="flex items-center">
-                 <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center mr-3">
-                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                   </svg>
-                 </div>
-                 <span className="text-2xl font-bold text-white">Government Risk Management</span>
-               </div>
-               <p className="text-gray-300 text-base">
-                 Official government platform for secure, compliant risk assessment and mitigation operations.
-               </p>
+              <div className="flex items-center">
+                <img src="/ecwc-logo.jpg" alt="ECWC" className="w-10 h-10 object-contain mr-3" />
+                <span className="text-2xl font-bold text-white">ECWC Risk Management</span>
+              </div>
+              <p className="text-gray-300 text-base">
+                Official ECWC platform for secure, compliant risk assessment and mitigation operations.
+              </p>
             </div>
             <div className="mt-12 grid grid-cols-2 gap-8 xl:mt-0 xl:col-span-2">
               <div className="md:grid md:grid-cols-2 md:gap-8">
@@ -201,7 +195,7 @@ const LandingPage = () => {
           </div>
           <div className="mt-12 border-t border-gray-700 pt-8">
             <p className="text-base text-gray-400 xl:text-center">
-                             &copy; 2024 Government Risk Management System. Official use only.
+              &copy; 2024 Ethiopian Construction Works Corporation (ECWC). All rights reserved.
             </p>
           </div>
         </div>
